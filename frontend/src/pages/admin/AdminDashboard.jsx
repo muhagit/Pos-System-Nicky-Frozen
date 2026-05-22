@@ -1,40 +1,42 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
-    LayoutDashboard,
-    Package,
-    Activity,
-    AlertTriangle,
-    Users,
-    RefreshCw,
-    FileText,
-    LogOut,
-    Search,
-    Bell,
-    Settings,
-    TrendingUp,
-    TrendingDown,
-} from "lucide-react";
+    FiSearch,
+    FiBell,
+    FiSettings,
+    FiPackage,
+    FiAlertTriangle,
+    FiRefreshCw,
+    FiTrendingDown,
+    FiTrendingUp,
+} from "react-icons/fi";
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+} from "recharts";
 
 const AdminDashboard = () => {
-    // State untuk menyimpan data dari Backend
     const [products, setProducts] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Mengambil data dari Backend saat komponen dimuat
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                // Ambil token dari localStorage (sesuaikan dengan cara Anda menyimpan sesi login)
                 const userInfo = JSON.parse(localStorage.getItem("userInfo"));
                 const config = {
-                    headers: {
-                        Authorization: `Bearer ${userInfo?.token}`,
-                    },
+                    headers: { Authorization: `Bearer ${userInfo?.token}` },
                 };
 
-                // Ambil data produk dan transaksi secara bersamaan
                 const [productRes, transactionRes] = await Promise.all([
                     axios.get("http://localhost:5000/api/products", config),
                     axios.get("http://localhost:5000/api/transactions", config),
@@ -44,384 +46,464 @@ const AdminDashboard = () => {
                 setTransactions(transactionRes.data);
                 setIsLoading(false);
             } catch (error) {
-                console.error("Gagal mengambil data backend:", error);
-                setIsLoading(false);
+                console.error("Gagal mengambil data:", error);
+                setIsLoading(false); // Tetap matikan loading agar UI tidak macet
             }
         };
 
+        // 1. Ambil data pertama kali saat halaman baru dibuka
         fetchDashboardData();
+
+        // 2. Fitur REAL-TIME (Polling):
+        // Perintahkan React mengambil data ulang setiap 10 detik di belakang layar
+        const intervalId = setInterval(() => {
+            fetchDashboardData();
+        }, 10000); // 10000 milidetik = 10 detik
+
+        // 3. Cleanup: Hentikan putaran timer jika admin pindah ke halaman lain
+        return () => clearInterval(intervalId);
     }, []);
 
-    // Kalkulasi Data Otomatis berdasarkan Database
+    // ==========================================
+    // LOGIKA PERHITUNGAN DATA
+    // ==========================================
     const totalProducts = products.length;
     const totalStock = products.reduce(
         (acc, curr) => acc + curr.stok_saat_ini,
         0,
     );
 
-    // Filter produk yang stoknya <= batas minimum
-    const lowStockProducts = products.filter(
+    // Filter produk yang menipis untuk Table Low Stock
+    const lowStockProductsList = products.filter(
         (p) => p.stok_saat_ini <= p.batas_stok_minimum,
     );
+    const lowStockItems = lowStockProductsList.length;
+
+    // Olah data Pie Chart
+    const categoryDataRaw = products.reduce((acc, curr) => {
+        const category = curr.kategori || "Lainnya";
+        acc[category] = (acc[category] || 0) + curr.stok_saat_ini;
+        return acc;
+    }, {});
+    const pieChartData = Object.keys(categoryDataRaw).map((key) => ({
+        name: key,
+        value: categoryDataRaw[key],
+    }));
+    const COLORS = [
+        "#22d3ee",
+        "#0ea5e9",
+        "#0284c7",
+        "#0369a1",
+        "#7dd3fc",
+        "#bae6fd",
+    ];
+
+    // Olah data Bar Chart
+    const barChartData = products.slice(0, 8).map((p) => ({
+        name:
+            p.nama_produk.length > 12
+                ? p.nama_produk.substring(0, 12) + "..."
+                : p.nama_produk,
+        stock: p.stok_saat_ini,
+    }));
+
+    // Olah data Transaksi untuk Recent Movements
+    // Karena ini aplikasi kasir, semua transaksi diasumsikan sebagai pengeluaran (barang terjual)
+    const recentMovements = [];
+    transactions.forEach((trx) => {
+        trx.detail_transaksi?.forEach((item) => {
+            recentMovements.push({
+                id: `${trx._id}-${item._id || Math.random()}`,
+                productName: item.produk_id?.nama_produk || "Produk Terjual",
+                branch: trx.cabang || "Pusat",
+                user: trx.user_id?.nama_lengkap || "Kasir",
+                qty: item.kuantitas,
+                date: new Date(trx.createdAt || Date.now()).toLocaleDateString(
+                    "id-ID",
+                    {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                    },
+                ),
+                type: "out", // 'out' = terjual (merah), bisa 'in' jika ada fitur restock (hijau)
+            });
+        });
+    });
+    // Urutkan dari yang paling baru dan ambil 5 teratas
+    const topMovements = recentMovements.reverse().slice(0, 5);
 
     return (
-        <div className="flex h-screen w-full bg-[var(--color-background)] font-poppins overflow-hidden">
-            {/* ================= SIDEBAR (Tetap) ================= */}
-            <aside className="w-64 flex flex-col bg-[var(--color-sidebar)] text-white h-full shadow-xl flex-shrink-0">
-                <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-                    <div className="bg-[var(--color-primary)] p-2 rounded-lg text-white">
-                        <LayoutDashboard size={24} />
+        <div className="h-full flex flex-col bg-background font-poppins">
+            {/* Header Topbar */}
+            <header className="h-20 px-8 flex items-center justify-between bg-background flex-shrink-0">
+                <h2 className="text-2xl font-bold text-gray-800">
+                    Admin Dashboard
+                </h2>
+
+                <div className="flex items-center gap-6">
+                    <div className="relative">
+                        <FiSearch
+                            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                            size={18}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            className="pl-11 pr-4 py-2.5 w-64 rounded-full border border-gray-200 bg-white focus:outline-none focus:border-primary text-sm shadow-sm transition-all"
+                        />
                     </div>
-                    <div>
-                        <h1 className="font-bold text-lg leading-tight">
-                            Nicky Frozen
-                        </h1>
-                        <p className="text-[var(--color-primary)] text-xs">
-                            Admin
+
+                    <div className="flex items-center gap-5 text-gray-500">
+                        <div className="relative cursor-pointer hover:text-primary transition">
+                            <FiBell size={22} />
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"></span>
+                        </div>
+                        <FiSettings
+                            size={22}
+                            className="cursor-pointer hover:text-primary transition"
+                        />
+                    </div>
+                </div>
+            </header>
+
+            {/* Dashboard Content (Scrollable) */}
+            <div className="flex-1 overflow-y-auto px-8 pb-10">
+                {/* 1. TOP ROW: Summary Cards */}
+                <div className="grid grid-cols-4 gap-6 mb-6">
+                    <StatCard
+                        title="Total Products"
+                        value={isLoading ? "..." : totalProducts}
+                        icon={<FiPackage />}
+                    />
+                    <StatCard
+                        title="Total Stock"
+                        value={isLoading ? "..." : totalStock}
+                        icon={<FiPackage />}
+                    />
+                    <StatCard
+                        title="Low Stock Items"
+                        value={isLoading ? "..." : lowStockItems}
+                        subtitle={
+                            lowStockItems > 0
+                                ? `↓ ${lowStockItems} items`
+                                : "Stok Aman"
+                        }
+                        icon={<FiAlertTriangle />}
+                        isWarning={true}
+                    />
+                    <StatCard
+                        title="Stock Movements"
+                        value={isLoading ? "..." : transactions.length}
+                        icon={<FiRefreshCw />}
+                    />
+                </div>
+
+                {/* 2. MIDDLE ROW: Charts */}
+                <div className="grid grid-cols-5 gap-6 mb-6">
+                    {/* Pie Chart */}
+                    <div className="col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                        <h3 className="font-bold text-gray-800 text-lg">
+                            Stock by Category
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-2">
+                            Current inventory distribution
                         </p>
-                    </div>
-                </div>
-
-                <div className="mx-4 mt-6 mb-2 p-3 bg-[var(--color-sidebar-light)] rounded-xl flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center font-bold text-[var(--color-sidebar)]">
-                        A
-                    </div>
-                    <div>
-                        <p className="font-semibold text-sm">Admin User</p>
-                        <p className="text-xs text-gray-400">Admin Account</p>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1 space-y-1">
-                    <NavItem
-                        icon={<LayoutDashboard size={20} />}
-                        label="Dashboard"
-                        active
-                    />
-                    <NavItem icon={<Package size={20} />} label="Products" />
-                    <NavItem
-                        icon={<Activity size={20} />}
-                        label="Stock Management"
-                    />
-                    <NavItem
-                        icon={<AlertTriangle size={20} />}
-                        label="Expired Monitoring"
-                    />
-                    <NavItem
-                        icon={<Users size={20} />}
-                        label="User Management"
-                    />
-                    <NavItem
-                        icon={<RefreshCw size={20} />}
-                        label="Branch Sync"
-                    />
-                    <NavItem icon={<FileText size={20} />} label="Reports" />
-                </div>
-
-                <div className="p-4 border-t border-white/10">
-                    <button className="flex items-center gap-3 px-4 py-3 w-full text-left text-gray-300 hover:text-white hover:bg-[var(--color-danger)]/20 rounded-xl transition-colors">
-                        <LogOut size={20} />
-                        <span className="font-medium">Logout</span>
-                    </button>
-                </div>
-            </aside>
-
-            {/* ================= MAIN CONTENT (Bisa di-scroll) ================= */}
-            <main className="flex-1 flex flex-col h-full overflow-hidden">
-                <header className="h-20 px-8 flex items-center justify-between bg-[var(--color-background)] flex-shrink-0">
-                    <h2 className="text-2xl font-bold text-[var(--color-text)]">
-                        Admin Dashboard
-                    </h2>
-                    <div className="flex items-center gap-6">
-                        <div className="relative">
-                            <Search
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                                size={18}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                className="pl-10 pr-4 py-2 w-64 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] focus:outline-none focus:border-[var(--color-primary)] text-sm"
-                            />
-                        </div>
-                        <div className="flex items-center gap-4 text-[var(--color-text-secondary)]">
-                            <div className="relative cursor-pointer hover:text-[var(--color-primary)]">
-                                <Bell size={24} />
-                                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[var(--color-danger)] rounded-full border-2 border-[var(--color-background)]"></span>
-                            </div>
-                            <Settings
-                                size={24}
-                                className="cursor-pointer hover:text-[var(--color-primary)]"
-                            />
-                        </div>
-                    </div>
-                </header>
-
-                {/* Area Konten Utama - Menggunakan overflow-y-auto agar bisa di-scroll ke bawah */}
-                <div className="flex-1 overflow-y-auto px-8 pb-10">
-                    {/* TOP ROW: Summary Cards Dinamis */}
-                    <div className="grid grid-cols-4 gap-6 mb-6">
-                        <StatCard
-                            title="Total Products"
-                            value={isLoading ? "..." : totalProducts}
-                            icon={<Package />}
-                            color="primary"
-                        />
-                        <StatCard
-                            title="Total Stock"
-                            value={isLoading ? "..." : totalStock}
-                            icon={<Package />}
-                            color="primary"
-                        />
-                        <StatCard
-                            title="Low Stock Items"
-                            value={isLoading ? "..." : lowStockProducts.length}
-                            subtitle={
-                                lowStockProducts.length > 0
-                                    ? `↓ ${lowStockProducts.length} items`
-                                    : "Stok Aman"
-                            }
-                            icon={<AlertTriangle />}
-                            color="warning"
-                        />
-                        <StatCard
-                            title="Total Transactions"
-                            value={isLoading ? "..." : transactions.length}
-                            icon={<RefreshCw />}
-                            color="primary"
-                        />
-                    </div>
-
-                    {/* MIDDLE ROW: Charts Area (Mockup visual dipertahankan) */}
-                    <div className="grid grid-cols-5 gap-6 mb-6">
-                        <div className="col-span-2 bg-[var(--color-card)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm">
-                            <h3 className="font-bold text-[var(--color-text)] text-lg">
-                                Stock by Category
-                            </h3>
-                            <p className="text-sm text-[var(--color-text-secondary)] mb-6">
-                                Current inventory distribution
-                            </p>
-                            <div className="flex justify-center items-center h-64 relative">
-                                <div
-                                    className="w-48 h-48 rounded-full shadow-inner"
-                                    style={{
-                                        background:
-                                            "conic-gradient(#22d3ee 0% 40%, #06b6d4 40% 65%, #a5f3fc 65% 100%)",
-                                    }}
-                                ></div>
-                            </div>
-                        </div>
-
-                        <div className="col-span-3 bg-[var(--color-card)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm">
-                            <h3 className="font-bold text-[var(--color-text)] text-lg">
-                                Stock Levels
-                            </h3>
-                            <p className="text-sm text-[var(--color-text-secondary)] mb-6">
-                                Products inventory status
-                            </p>
-                            <div className="h-64 flex items-end justify-around gap-4 border-b border-l border-[var(--color-border)] pb-2 pl-2 relative">
-                                {/* Bar Chart Mockup */}
-                                {[
-                                    "Chicken Nugget",
-                                    "Fish Fillet",
-                                    "French Fries",
-                                ].map((name, i) => (
-                                    <div
-                                        key={i}
-                                        className="flex flex-col items-center w-full group"
-                                    >
-                                        <div
-                                            className="w-full bg-[var(--color-primary)] rounded-t-sm"
-                                            style={{
-                                                height: `${Math.floor(Math.random() * 80 + 20)}%`,
+                        <div className="flex-1 min-h-[250px] w-full">
+                            {isLoading ? (
+                                <div className="h-full flex items-center justify-center text-gray-400">
+                                    Loading chart...
+                                </div>
+                            ) : pieChartData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-400">
+                                    Belum ada data produk
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={pieChartData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {pieChartData.map(
+                                                (entry, index) => (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={
+                                                            COLORS[
+                                                                index %
+                                                                    COLORS.length
+                                                            ]
+                                                        }
+                                                    />
+                                                ),
+                                            )}
+                                        </Pie>
+                                        <Tooltip
+                                            formatter={(value) => [
+                                                `${value} unit`,
+                                                "Total Stok",
+                                            ]}
+                                            contentStyle={{
+                                                borderRadius: "12px",
+                                                border: "none",
+                                                boxShadow:
+                                                    "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                                             }}
-                                        ></div>
-                                    </div>
-                                ))}
-                            </div>
+                                        />
+                                        <Legend
+                                            verticalAlign="bottom"
+                                            height={36}
+                                            iconType="circle"
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
                     </div>
 
-                    {/* ================= BOTTOM ROW 1: LOW STOCK ALERTS ================= */}
-                    <div className="bg-[var(--color-card)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm mb-6">
-                        <div className="flex items-center gap-2 mb-6">
-                            <AlertTriangle
-                                className="text-[var(--color-warning)]"
-                                size={24}
-                            />
-                            <h3 className="font-bold text-[var(--color-text)] text-xl">
-                                Low Stock Alerts
-                            </h3>
+                    {/* Bar Chart */}
+                    <div className="col-span-3 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                        <h3 className="font-bold text-gray-800 text-lg">
+                            Stock Levels
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Products inventory status
+                        </p>
+                        <div className="flex-1 min-h-[250px] w-full">
+                            {isLoading ? (
+                                <div className="h-full flex items-center justify-center text-gray-400">
+                                    Loading chart...
+                                </div>
+                            ) : barChartData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-gray-400">
+                                    Belum ada data produk
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={barChartData}
+                                        margin={{
+                                            top: 5,
+                                            right: 10,
+                                            left: -20,
+                                            bottom: 25,
+                                        }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            vertical={false}
+                                            stroke="#f3f4f6"
+                                        />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{
+                                                fill: "#6b7280",
+                                                fontSize: 11,
+                                            }}
+                                            angle={-35}
+                                            textAnchor="end"
+                                        />
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{
+                                                fill: "#6b7280",
+                                                fontSize: 12,
+                                            }}
+                                        />
+                                        <Tooltip
+                                            cursor={{ fill: "#f3f4f6" }}
+                                            contentStyle={{
+                                                borderRadius: "12px",
+                                                border: "none",
+                                                boxShadow:
+                                                    "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                                            }}
+                                        />
+                                        <Bar
+                                            dataKey="stock"
+                                            fill="#22d3ee"
+                                            radius={[4, 4, 0, 0]}
+                                            barSize={40}
+                                            name="Total Stok"
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
                         </div>
+                    </div>
+                </div>
 
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="text-[var(--color-text-secondary)] text-sm border-b border-[var(--color-border)]">
-                                        <th className="pb-3 font-medium">
-                                            Product Name
-                                        </th>
-                                        <th className="pb-3 font-medium">
-                                            Product ID
-                                        </th>
-                                        <th className="pb-3 font-medium">
-                                            Category
-                                        </th>
-                                        <th className="pb-3 font-medium">
-                                            Current Stock
-                                        </th>
-                                        <th className="pb-3 font-medium">
-                                            Status
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {lowStockProducts.map((product) => (
+                {/* 3. BOTTOM ROW: Tables & Lists */}
+
+                {/* Low Stock Alerts */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <FiAlertTriangle className="text-amber-500" size={24} />
+                        <h3 className="font-bold text-gray-800 text-lg">
+                            Low Stock Alerts
+                        </h3>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="text-gray-500 text-sm border-b border-gray-100">
+                                    <th className="pb-4 font-medium px-4">
+                                        Product Name
+                                    </th>
+                                    <th className="pb-4 font-medium">SKU</th>
+                                    <th className="pb-4 font-medium">
+                                        Category
+                                    </th>
+                                    <th className="pb-4 font-medium">
+                                        Current Stock
+                                    </th>
+                                    <th className="pb-4 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {lowStockProductsList.map((product) => {
+                                    // Bikin SKU buatan dari _id
+                                    const sku = `FRZ-${product._id.substring(18, 24).toUpperCase()}`;
+                                    const isCritical =
+                                        product.stok_saat_ini === 0;
+
+                                    return (
                                         <tr
                                             key={product._id}
-                                            className="border-b border-[var(--color-border)] last:border-0 hover:bg-gray-50"
+                                            className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition"
                                         >
-                                            <td className="py-4 text-[var(--color-text)] font-medium">
+                                            <td className="py-4 px-4 font-semibold text-gray-800">
                                                 {product.nama_produk}
                                             </td>
-                                            <td className="py-4 text-[var(--color-text-secondary)] text-sm">
-                                                {product._id
-                                                    .substring(18, 24)
-                                                    .toUpperCase()}
+                                            <td className="py-4 text-gray-500 text-sm">
+                                                {sku}
                                             </td>
-                                            <td className="py-4 text-[var(--color-text-secondary)]">
+                                            <td className="py-4 text-gray-500 text-sm">
                                                 {product.kategori}
                                             </td>
-                                            <td className="py-4 font-semibold text-[var(--color-text)]">
+                                            <td className="py-4 font-bold text-gray-800">
                                                 {product.stok_saat_ini} units
                                             </td>
                                             <td className="py-4">
                                                 <span
                                                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                        product.stok_saat_ini ===
-                                                        0
-                                                            ? "bg-red-100 text-red-600" // Critical
-                                                            : "bg-yellow-100 text-yellow-700" // Low Stock
+                                                        isCritical
+                                                            ? "bg-red-100 text-red-600"
+                                                            : "bg-amber-100 text-amber-600"
                                                     }`}
                                                 >
-                                                    {product.stok_saat_ini === 0
+                                                    {isCritical
                                                         ? "Critical"
                                                         : "Low Stock"}
                                                 </span>
                                             </td>
                                         </tr>
-                                    ))}
-                                    {lowStockProducts.length === 0 &&
-                                        !isLoading && (
-                                            <tr>
-                                                <td
-                                                    colSpan="5"
-                                                    className="py-8 text-center text-gray-400"
-                                                >
-                                                    Semua stok produk dalam
-                                                    kondisi aman.
-                                                </td>
-                                            </tr>
-                                        )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* ================= BOTTOM ROW 2: RECENT STOCK MOVEMENTS ================= */}
-                    <div className="bg-[var(--color-card)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm">
-                        <h3 className="font-bold text-[var(--color-text)] text-xl mb-6">
-                            Recent Stock Movements
-                        </h3>
-
-                        <div className="flex flex-col gap-4">
-                            {transactions.slice(0, 5).map((trx, index) =>
-                                // Kita melakukan map ke dalam detail_transaksi karena 1 transaksi bisa punya banyak produk
-                                trx.detail_transaksi.map((item, idx) => (
-                                    <div
-                                        key={`${trx._id}-${idx}`}
-                                        className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-transparent hover:border-[var(--color-border)] transition-colors"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            {/* Ikon Pengurangan (Karena ini data transaksi penjualan) */}
-                                            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500">
-                                                <TrendingDown size={20} />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-[var(--color-text)]">
-                                                    {item.produk_id
-                                                        ?.nama_produk ||
-                                                        "Produk Terjual"}
-                                                </p>
-                                                <p className="text-xs text-[var(--color-text-secondary)]">
-                                                    {trx.cabang} •{" "}
-                                                    {trx.user_id
-                                                        ?.nama_lengkap ||
-                                                        "Kasir"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-red-600">
-                                                -{item.kuantitas} units
-                                            </p>
-                                            <p className="text-xs text-gray-400">
-                                                {new Date(
-                                                    trx.createdAt,
-                                                ).toLocaleDateString("id-ID")}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )),
-                            )}
-
-                            {transactions.length === 0 && !isLoading && (
-                                <p className="text-center text-gray-400 py-4">
-                                    Belum ada pergerakan stok (transaksi).
-                                </p>
-                            )}
-                        </div>
+                                    );
+                                })}
+                                {lowStockProductsList.length === 0 &&
+                                    !isLoading && (
+                                        <tr>
+                                            <td
+                                                colSpan="5"
+                                                className="py-8 text-center text-gray-400 text-sm"
+                                            >
+                                                Semua stok produk dalam kondisi
+                                                aman.
+                                            </td>
+                                        </tr>
+                                    )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </main>
+
+                {/* Recent Stock Movements */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                    <h3 className="font-bold text-gray-800 text-lg mb-6">
+                        Recent Stock Movements
+                    </h3>
+
+                    <div className="flex flex-col gap-3">
+                        {topMovements.map((movement) => (
+                            <div
+                                key={movement.id}
+                                className="flex items-center justify-between p-4 bg-gray-50/70 rounded-xl hover:bg-gray-100/70 transition"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div
+                                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                            movement.type === "in"
+                                                ? "bg-emerald-100 text-emerald-600"
+                                                : "bg-red-100 text-red-500"
+                                        }`}
+                                    >
+                                        {movement.type === "in" ? (
+                                            <FiTrendingUp size={20} />
+                                        ) : (
+                                            <FiTrendingDown size={20} />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-800">
+                                            {movement.productName}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-0.5">
+                                            {movement.branch} • {movement.user}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p
+                                        className={`font-bold ${movement.type === "in" ? "text-emerald-500" : "text-red-500"}`}
+                                    >
+                                        {movement.type === "in" ? "+" : "-"}
+                                        {movement.qty} units
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                        {movement.date}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+
+                        {topMovements.length === 0 && !isLoading && (
+                            <div className="text-center py-6 text-gray-400 text-sm">
+                                Belum ada riwayat pergerakan stok.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
 
-const NavItem = ({ icon, label, active }) => {
+const StatCard = ({ title, value, subtitle, icon, isWarning }) => {
     return (
-        <button
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full text-left
-            ${active ? "bg-[var(--color-primary)] text-white font-medium shadow-md shadow-cyan-500/20" : "text-gray-300 hover:bg-[var(--color-sidebar-light)] hover:text-white"}
-        `}
-        >
-            {icon}
-            <span className="text-sm">{label}</span>
-        </button>
-    );
-};
-
-const StatCard = ({ title, value, subtitle, icon, color }) => {
-    const isWarning = color === "warning";
-    return (
-        <div className="bg-[var(--color-card)] p-6 rounded-2xl border border-[var(--color-border)] shadow-sm flex flex-col justify-between">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
-                <p className="text-[var(--color-text-secondary)] font-medium text-sm">
-                    {title}
-                </p>
+                <p className="text-gray-500 font-medium text-sm">{title}</p>
                 <div
-                    className={`p-2.5 rounded-lg text-white ${isWarning ? "bg-[var(--color-warning)]" : "bg-[var(--color-primary)]"}`}
+                    className={`p-3 rounded-xl text-white ${isWarning ? "bg-amber-500 shadow-amber-500/30" : "bg-primary shadow-cyan-500/30"} shadow-lg`}
                 >
                     {React.cloneElement(icon, { size: 20 })}
                 </div>
             </div>
             <div>
-                <h3 className="text-3xl font-bold text-[var(--color-text)]">
-                    {value}
-                </h3>
+                <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
                 {subtitle && (
                     <p
-                        className={`text-xs mt-1 ${isWarning ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"}`}
+                        className={`text-xs mt-2 font-medium ${isWarning ? "text-red-500" : "text-emerald-500"}`}
                     >
                         {subtitle}
                     </p>
