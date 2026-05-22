@@ -1,10 +1,10 @@
 import { useState } from "react";
 import API from "../services/api";
+import swal from "sweetalert2";
 
 const LoginPage = () => {
-
     const [role, setRole] = useState("Owner");
-
+    const [rememberMe, setRememberMe] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
         password: "",
@@ -19,9 +19,9 @@ const LoginPage = () => {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        
 
         try {
-
             const response = await API.post("/auth/login", {
                 username: formData.username,
                 password: formData.password,
@@ -30,114 +30,217 @@ const LoginPage = () => {
 
             console.log(response.data);
 
-            // simpan token
-            localStorage.setItem(
-                "userInfo",
-                JSON.stringify(response.data)
-            );
+            localStorage.setItem("userInfo", JSON.stringify(response.data));
 
             alert("Login berhasil");
 
-            // redirect berdasarkan role
-            if (response.data.role === "Owner") {
-                window.location.href = "/owner";
-            }
-
-            if (response.data.role === "Admin") {
-                window.location.href = "/admin";
-            }
-
-            if (response.data.role === "Kasir") {
-                window.location.href = "/kasir";
-            }
-
+            if (response.data.role === "Owner") window.location.href = "/owner";
+            if (response.data.role === "Admin") window.location.href = "/admin";
+            if (response.data.role === "Kasir") window.location.href = "/kasir";
         } catch (error) {
-
-            alert(
-                error.response?.data?.message ||
-                "Login gagal"
-            );
+            alert(error.response?.data?.message || "Login gagal");
         }
     };
 
+    const roles = ["Owner", "Admin", "Kasir"];
+
     return (
-        <div
-            style={{
-                height: "100vh",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                background: "#f5f5f5",
-            }}
-        >
-            <form
-                onSubmit={handleLogin}
-                style={{
-                    background: "white",
-                    padding: "30px",
-                    borderRadius: "10px",
-                    width: "350px",
-                }}
-            >
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-100">
+            <div className="flex w-full max-w-4xl mx-4 rounded-2xl shadow-2xl overflow-hidden bg-white">
 
-                <h2>Nicky Frozen POS</h2>
-
-                <h3>Pilih Role</h3>
-
-                <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
+                {/* Left Panel */}
+                <div
+                    className="hidden md:flex flex-col justify-between w-2/5 p-10 relative overflow-hidden"
                     style={{
-                        width: "100%",
-                        padding: "10px",
-                        marginBottom: "15px",
+                        background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 40%, #1e40af 70%, #1a3a7a 100%)",
                     }}
                 >
-                    <option>Owner</option>
-                    <option>Admin</option>
-                    <option>Kasir</option>
-                </select>
+                    {/* Decorative snowflakes */}
+                    <div className="absolute top-8 left-8 opacity-20">
+                        <SnowflakeIcon size={64} />
+                    </div>
+                    <div className="absolute bottom-16 right-6 opacity-20">
+                        <SnowflakeIcon size={56} />
+                    </div>
+                    <div className="absolute top-1/2 left-4 opacity-10">
+                        <SnowflakeIcon size={40} />
+                    </div>
 
-                <input
-                    type="text"
-                    name="username"
-                    placeholder="Username"
-                    onChange={handleChange}
-                    style={{
-                        width: "100%",
-                        padding: "10px",
-                        marginBottom: "15px",
-                    }}
-                />
+                    {/* Logo & Brand */}
+                    <div className="relative z-10 flex flex-col items-center text-center mt-10">
+                        <div
+                            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+                            style={{ background: "rgba(34, 211, 238, 0.25)", backdropFilter: "blur(8px)", border: "1px solid rgba(34,211,238,0.3)" }}
+                        >
+                            <SnowflakeIcon size={32} color="#22d3ee" />
+                        </div>
 
-                <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    onChange={handleChange}
-                    style={{
-                        width: "100%",
-                        padding: "10px",
-                        marginBottom: "15px",
-                    }}
-                />
+                        <h1 className="text-3xl font-bold text-white mb-2 font-[var(--font-poppins)]">
+                            Nicky Frozen
+                        </h1>
+                        <p className="text-sm font-medium" style={{ color: "#22d3ee" }}>
+                            Fresh &amp; Quality Frozen Food
+                        </p>
+                    </div>
 
-                <button
-                    type="submit"
-                    style={{
-                        width: "100%",
-                        padding: "10px",
-                        background: "#111827",
-                        color: "white",
-                        border: "none",
-                    }}
-                >
-                    Login
-                </button>
+                    {/* Features */}
+                    <div className="relative z-10 flex flex-col gap-4 mb-8">
+                        {[
+                            "Fast POS System",
+                            "Real-time Monitoring",
+                            "Multi-branch Management",
+                        ].map((feature) => (
+                            <div key={feature} className="flex items-center gap-3">
+                                <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                                    style={{ border: "2px solid #22d3ee" }}
+                                >
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                        <path
+                                            d="M2 6l3 3 5-5"
+                                            stroke="#22d3ee"
+                                            strokeWidth="1.8"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                </div>
+                                <span className="text-white text-sm">{feature}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
-            </form>
+                {/* Right Panel */}
+                <div className="flex-1 flex flex-col justify-center px-10 py-12">
+                    <h2 className="text-3xl font-bold text-[var(--color-text)] mb-1">
+                        Welcome Back
+                    </h2>
+                    <p className="text-[var(--color-text-secondary)] text-sm mb-6">
+                        Sign in to your account to continue
+                    </p>
+
+                    {/* Role Selection */}
+                    <div className="mb-6">
+                        <p className="text-sm font-medium text-[var(--color-text)] mb-2">
+                            Login sebagai
+                        </p>
+                        <div className="flex gap-2">
+                            {roles.map((r) => (
+                                <button
+                                    key={r}
+                                    type="button"
+                                    onClick={() => setRole(r)}
+                                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium border transition-all duration-200 cursor-pointer ${
+                                        role === r
+                                            ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-md"
+                                            : "bg-white border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                                    }`}
+                                >
+                                    {r}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                        {/* Email / Username */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium text-[var(--color-text)]">
+                                Email Address
+                            </label>
+                            <input
+                                type="text"
+                                name="username"
+                                placeholder="your@email.com"
+                                onChange={handleChange}
+                                className="border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                            />
+                        </div>
+
+                        {/* Password */}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium text-[var(--color-text)]">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                name="password"
+                                placeholder="••••••••"
+                                onChange={handleChange}
+                                className="border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
+                            />
+                        </div>
+
+                        {/* Remember Me & Forgot Password */}
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={() => setRememberMe(!rememberMe)}
+                                    className="w-4 h-4 accent-[var(--color-primary)] cursor-pointer"
+                                />
+                                <span className="text-sm text-[var(--color-text)]">Remember me</span>
+                            </label>
+                            <button
+                                type="button"
+                                className="text-sm font-medium text-[var(--color-primary-dark)] hover:underline cursor-pointer bg-transparent border-none"
+                            >
+                                Forgot password?
+                            </button>
+                        </div>
+
+                        {/* Sign In Button */}
+                        <button
+                            type="submit"
+                            className="mt-1 w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.99] cursor-pointer"
+                            style={{
+                                background: "linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%)",
+                            }}
+                        >
+                            Sign In
+                        </button>
+
+                        {/* Demo Credentials */}
+                        <p className="text-center text-sm text-[var(--color-text-secondary)]">
+                            Demo credentials:{" "}
+                            <span className="font-semibold text-[var(--color-text)]">
+                                Any email/password
+                            </span>
+                        </p>
+                    </form>
+                </div>
+            </div>
         </div>
     );
 };
+
+/* Simple inline Snowflake SVG icon */
+const SnowflakeIcon = ({ size = 24, color = "currentColor" }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <line x1="12" y1="2" x2="12" y2="22" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        <line x1="19.07" y1="4.93" x2="4.93" y2="19.07" />
+        <circle cx="12" cy="2" r="1" fill={color} stroke="none" />
+        <circle cx="12" cy="22" r="1" fill={color} stroke="none" />
+        <circle cx="2" cy="12" r="1" fill={color} stroke="none" />
+        <circle cx="22" cy="12" r="1" fill={color} stroke="none" />
+        <circle cx="4.93" cy="4.93" r="1" fill={color} stroke="none" />
+        <circle cx="19.07" cy="19.07" r="1" fill={color} stroke="none" />
+        <circle cx="4.93" cy="19.07" r="1" fill={color} stroke="none" />
+        <circle cx="19.07" cy="4.93" r="1" fill={color} stroke="none" />
+    </svg>
+);
 
 export default LoginPage;
