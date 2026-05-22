@@ -5,7 +5,8 @@ import OwnerPage from "./pages/OwnerPage";
 import KasirPage from "./pages/KasirPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLayout from "./layouts/AdminLayout";
-
+import AdminProducts from "./pages/admin/AdminProducts";
+import AdminStock from "./pages/admin/AdminStock";
 import HistoryPage from "./pages/HistoryPage";
 import KasirLayout from "./layouts/KasirLayout";
 import HoldPage from "./pages/HoldPage";
@@ -33,6 +34,8 @@ function App() {
                 <Route path="/admin" element={<AdminLayout />}>
                     {/* Index route ini sekarang berada DI DALAM AdminLayout */}
                     <Route index element={<AdminDashboard />} />
+                    <Route path="products" element={<AdminProducts />} />{" "}
+                    <Route path="stock" element={<AdminStock />} />
                 </Route>
 
                 {/* =========================================
