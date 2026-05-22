@@ -8,6 +8,8 @@ import KasirPage from "./pages/KasirPage";
 import HistoryPage from "./pages/HistoryPage";
 import KasirLayout from "./layouts/KasirLayout";
 import HoldPage from "./pages/HoldPage";
+import ReportPage from "./pages/ReportPage";
+import NotificationPage from "./pages/NotificationPage";
 function App() {
   return (
     <BrowserRouter>
@@ -25,6 +27,8 @@ function App() {
 
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/hold" element={<HoldPage />} />
+          <Route path="/report" element={<ReportPage />} />
+          <Route path="/notifications" element={<NotificationPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

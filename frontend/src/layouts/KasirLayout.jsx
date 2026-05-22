@@ -11,6 +11,11 @@ import {
 const KasirLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const handleLogout = () => {
+    localStorage.removeItem("userInfo");
+
+    navigate("/");
+  };
 
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
 
@@ -77,12 +82,26 @@ const KasirLayout = () => {
               Hold Transactions
             </button>
 
-            <button className="p-4 rounded-2xl text-left hover:bg-sidebar-light transition flex items-center gap-3">
+            <button
+              onClick={() => navigate("/report")}
+              className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
+                location.pathname === "/report"
+                  ? "bg-primary"
+                  : "hover:bg-sidebar-light"
+              }`}
+            >
               <FiFileText size={20} />
               Report
             </button>
 
-            <button className="p-4 rounded-2xl text-left hover:bg-sidebar-light transition flex items-center gap-3">
+            <button
+              onClick={() => navigate("/notifications")}
+              className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
+                location.pathname === "/notifications"
+                  ? "bg-primary"
+                  : "hover:bg-sidebar-light"
+              }`}
+            >
               <FiBell size={20} />
               Notifications
             </button>
@@ -90,8 +109,10 @@ const KasirLayout = () => {
         </div>
 
         {/* LOGOUT */}
-        <button className="bg-sidebar-light p-4 rounded-2xl flex items-center justify-center gap-3">
-          <FiLogOut size={20} />
+        <button
+          onClick={handleLogout}
+          className="bg-sidebar-light p-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-red-500 transition"
+        >
           Logout
         </button>
       </div>
