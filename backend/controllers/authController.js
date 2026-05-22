@@ -59,10 +59,16 @@ export const registerUser = async (req, res) => {
 // @route   POST /api/auth/login
 export const loginUser = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, role } = req.body;
 
         // Cari user berdasarkan username
         const user = await User.findOne({ username });
+        // cek role sesuai pilihan login
+if (user && user.role !== role) {
+    return res.status(401).json({
+        message: "Role tidak sesuai",
+    });
+}
 
         // Cocokkan password yang diinput dengan password yang di-hash di database
         if (user && (await bcrypt.compare(password, user.password))) {

@@ -18,7 +18,6 @@ connectDB();
 
 // Daftarkan route produk di sini
 app.use("/api/products", productRoutes);
-app.use("/api/products", productRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
