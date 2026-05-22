@@ -4,34 +4,30 @@ import {
     FiEye,
 } from "react-icons/fi";
 
+import { useEffect, useState } from "react";
+import axios from "axios";
 const HistoryPage = () => {
 
-    const transactions = [
-        {
-            id: "INV-001",
-            customer: "Walk In Customer",
-            payment: "Cash",
-            total: 125000,
-            status: "Success",
-            date: "21 May 2026",
-        },
-        {
-            id: "INV-002",
-            customer: "Walk In Customer",
-            payment: "QRIS",
-            total: 87000,
-            status: "Success",
-            date: "21 May 2026",
-        },
-        {
-            id: "INV-003",
-            customer: "Walk In Customer",
-            payment: "Transfer",
-            total: 230000,
-            status: "Pending",
-            date: "21 May 2026",
-        },
-    ];
+    const [transactions, setTransactions] = useState([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+    const fetchTransactions = async () => {
+        try {
+            const res = await axios.get(
+                "http://localhost:5000/api/transactions"
+            );
+
+            setTransactions(res.data);
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchTransactions();
+}, []);
 
     return (
         <div className="p-8 bg-background h-screen overflow-y-auto font-poppins">
@@ -79,7 +75,10 @@ const HistoryPage = () => {
             {/* TABLE */}
             <div className="bg-white rounded-3xl p-6 mt-8 overflow-x-auto">
 
-                <table className="w-full">
+                {loading ? (
+    <p className="text-center py-10">Loading transactions...</p>
+) : (
+    <table className="w-full">
 
                     <thead>
 
@@ -179,6 +178,7 @@ const HistoryPage = () => {
                     </tbody>
 
                 </table>
+)}
 
             </div>
 

@@ -6,45 +6,29 @@ import {
   FiPackage,
 } from "react-icons/fi";
 
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 const NotificationPage = () => {
-  const notifications = [
-    {
-      type: "expired",
-      title: "Product Expiration Warning",
-      message: "Frozen Chicken Nugget will expire in 3 days.",
-      time: "1 hour ago",
-    },
-    {
-      type: "expired",
-      title: "Expired Product Alert",
-      message: "Frozen Beef Sausage has expired.",
-      time: "2 hours ago",
-    },
-    {
-      type: "warning",
-      title: "Low Stock Alert",
-      message: "Frozen Nugget stock is running low.",
-      time: "5 minutes ago",
-    },
-    {
-      type: "success",
-      title: "Transaction Success",
-      message: "Invoice INV-001 completed successfully.",
-      time: "10 minutes ago",
-    },
-    {
-      type: "hold",
-      title: "Transaction Hold",
-      message: "Transaction HOLD-001 has been saved.",
-      time: "20 minutes ago",
-    },
-    {
-      type: "warning",
-      title: "Low Stock Alert",
-      message: "Frozen Sausage stock is almost empty.",
-      time: "30 minutes ago",
-    },
-  ];
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const fetchNotif = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5000/api/transactions/notifications",
+        );
+
+        setNotifications(res.data);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotif();
+  }, []);
 
   const getIcon = (type) => {
     if (type === "warning") {
@@ -56,15 +40,12 @@ const NotificationPage = () => {
     }
 
     if (type === "expired") {
-
-    return (
+      return (
         <div className="bg-red-100 text-red-600 p-4 rounded-2xl">
-
-            <FiPackage size={24} />
-
+          <FiPackage size={24} />
         </div>
-    );
-}
+      );
+    }
 
     if (type === "success") {
       return (
@@ -100,28 +81,36 @@ const NotificationPage = () => {
 
       {/* NOTIFICATION LIST */}
       <div className="space-y-5 mt-8">
-        {notifications.map((notif, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-3xl p-6 flex items-start gap-5 hover:shadow-md transition"
-          >
-            {/* ICON */}
-            {getIcon(notif.type)}
+        {loading ? (
+          <p className="text-center text-text-secondary">
+            Loading notifications...
+          </p>
+        ) : notifications.length === 0 ? (
+          <p className="text-center text-text-secondary">No notifications</p>
+        ) : (
+          notifications.map((notif, index) => (
+            <div
+              key={index}
+              className="bg-white rounded-3xl p-6 flex items-start gap-5 hover:shadow-md transition"
+            >
+              {/* ICON */}
+              {getIcon(notif.type)}
 
-            {/* CONTENT */}
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">{notif.title}</h2>
+              {/* CONTENT */}
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold">{notif.title}</h2>
 
-                <span className="text-sm text-text-secondary">
-                  {notif.time}
-                </span>
+                  <span className="text-sm text-text-secondary">
+                    {new Date(notif.time).toLocaleString("id-ID")}
+                  </span>
+                </div>
+
+                <p className="text-text-secondary mt-2">{notif.message}</p>
               </div>
-
-              <p className="text-text-secondary mt-2">{notif.message}</p>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
