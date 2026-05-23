@@ -12,8 +12,8 @@ import KasirPage from "./pages/KasirPage";
 function App() {
     return (
         <BrowserRouter>
-
             <Routes>
+
 
                 <Route
                     path="/"
@@ -36,9 +36,7 @@ function App() {
                 />
 
             </Routes>
-
         </BrowserRouter>
     );
 }
-
 export default App;
