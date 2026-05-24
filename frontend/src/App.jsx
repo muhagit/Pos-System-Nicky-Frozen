@@ -1,42 +1,73 @@
-import {
-    BrowserRouter,
-    Routes,
-    Route,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
-import OwnerPage from "./pages/OwnerPage";
-import AdminPage from "./pages/AdminPage";
 import KasirPage from "./pages/KasirPage";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminProducts from "./pages/admin/AdminProducts";
+import AdminStock from "./pages/admin/AdminStock";
+import HistoryPage from "./pages/HistoryPage";
+import KasirLayout from "./layouts/KasirLayout";
+import HoldPage from "./pages/HoldPage";
+import ReportPage from "./pages/ReportPage";
+import NotificationPage from "./pages/NotificationPage";
+import OwnerLayout from "./layouts/OwnerLayout";
+import DashboardOwner from "./pages/owner/DashboardOwner";
+import UserManagement from "./pages/owner/UserManagement";
+import Analytics from "./pages/owner/Analytics";
+import Reports from "./pages/owner/Reports";
+import Branches from "./pages/owner/Branches";
+import Notifications from "./pages/owner/Notifications";
+import ClosingBook from "./pages/owner/ClosingBook";
 
 function App() {
-    return (
-        <BrowserRouter>
-            <Routes>
-
-
-                <Route
-                    path="/"
-                    element={<LoginPage />}
-                />
-
-                <Route
-                    path="/owner"
-                    element={<OwnerPage />}
-                />
-
-                <Route
-                    path="/admin"
-                    element={<AdminPage />}
-                />
-
-                <Route
-                    path="/kasir"
-                    element={<KasirPage />}
-                />
-
-            </Routes>
-        </BrowserRouter>
-    );
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* =========================================
+                    1. RUTE UTAMA (ROOT)
+                ========================================= */}
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/" element={<LoginPage />} />
+        {/* =========================================
+                    2. RUTE OWNER
+                ========================================= */}
+        <Route path="/owner" element={<OwnerLayout />}>
+          <Route index element={<DashboardOwner />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="branches" element={<Branches />} />
+          <Route path="/owner/notifications" element={<Notifications />} />
+           <Route path="closing-book" element={<ClosingBook />} />
+        </Route>
+        {/* =========================================
+                    3. RUTE ADMIN (Nested Routing)
+                ========================================= */}
+        {/* Perhatikan bahwa tag Route ini memiliki tag penutup </Route> */}
+        <Route path="/admin" element={<AdminLayout />}>
+          {/* Index route ini sekarang berada DI DALAM AdminLayout */}
+          <Route index element={<AdminDashboard />} />
+          <Route path="products" element={<AdminProducts />} />{" "}
+          <Route path="stock" element={<AdminStock />} />
+        </Route>
+        {/* =========================================
+                    4. RUTE KASIR (Nested Routing)
+                ========================================= */}
+        <Route element={<KasirLayout />}>
+          <Route path="/kasir" element={<KasirPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/hold" element={<HoldPage />} />
+          <Route path="/report" element={<ReportPage />} />
+          <Route path="/notifications" element={<NotificationPage />} />
+        </Route>
+        {/* =========================================
+                    5. RUTE PENYELAMAT (404)
+                ========================================= */}
+        {/* Jika user mengetik URL yang tidak ada di atas, lempar ke halaman Login */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 export default App;
