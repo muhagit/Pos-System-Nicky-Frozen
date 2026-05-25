@@ -9,6 +9,7 @@ import {
     FiRefreshCw,
     FiFileText,
     FiLogOut,
+    FiSettings,
 } from "react-icons/fi";
 
 const AdminLayout = () => {
@@ -100,21 +101,9 @@ const AdminLayout = () => {
                         </button>
 
                         <button
-                            onClick={() => navigate("/admin/users")}
+                            onClick={() => navigate("/admin/branch-sync")}
                             className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/users"
-                                    ? "bg-primary"
-                                    : "hover:bg-sidebar-light"
-                            }`}
-                        >
-                            <FiUsers size={20} />
-                            User Management
-                        </button>
-
-                        <button
-                            onClick={() => navigate("/admin/sync")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/sync"
+                                location.pathname === "/admin/branch-sync"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
                             }`}
@@ -133,6 +122,18 @@ const AdminLayout = () => {
                         >
                             <FiFileText size={20} />
                             Reports
+                        </button>
+
+                        <button
+                            onClick={() => navigate("/admin/settings")}
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
+                                location.pathname === "/admin/settings"
+                                    ? "bg-primary"
+                                    : "hover:bg-sidebar-light"
+                            }`}
+                        >
+                            <FiSettings size={20} />
+                            Settings
                         </button>
                     </div>
                 </div>

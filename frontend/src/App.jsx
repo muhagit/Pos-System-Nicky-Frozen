@@ -19,55 +19,66 @@ import Reports from "./pages/owner/Reports";
 import Branches from "./pages/owner/Branches";
 import Notifications from "./pages/owner/Notifications";
 import ClosingBook from "./pages/owner/ClosingBook";
+import AdminExpired from "./pages/admin/AdminExpired";
+import AdminSettings from "./pages/admin/AdminSettings";
+import AdminBranchSync from "./pages/admin/AdminBranchSync";
+import AdminReports from "./pages/admin/AdminReports";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* =========================================
+      <BrowserRouter>
+          <Routes>
+              {/* =========================================
                     1. RUTE UTAMA (ROOT)
                 ========================================= */}
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/" element={<LoginPage />} />
-        {/* =========================================
+              <Route path="/" element={<LoginPage />} />
+              <Route path="/" element={<LoginPage />} />
+              {/* =========================================
                     2. RUTE OWNER
                 ========================================= */}
-        <Route path="/owner" element={<OwnerLayout />}>
-          <Route index element={<DashboardOwner />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="branches" element={<Branches />} />
-          <Route path="/owner/notifications" element={<Notifications />} />
-           <Route path="closing-book" element={<ClosingBook />} />
-        </Route>
-        {/* =========================================
+              <Route path="/owner" element={<OwnerLayout />}>
+                  <Route index element={<DashboardOwner />} />
+                  <Route path="users" element={<UserManagement />} />
+                  <Route path="analytics" element={<Analytics />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="branches" element={<Branches />} />
+                  <Route
+                      path="/owner/notifications"
+                      element={<Notifications />}
+                  />
+                  <Route path="closing-book" element={<ClosingBook />} />
+              </Route>
+              {/* =========================================
                     3. RUTE ADMIN (Nested Routing)
                 ========================================= */}
-        {/* Perhatikan bahwa tag Route ini memiliki tag penutup </Route> */}
-        <Route path="/admin" element={<AdminLayout />}>
-          {/* Index route ini sekarang berada DI DALAM AdminLayout */}
-          <Route index element={<AdminDashboard />} />
-          <Route path="products" element={<AdminProducts />} />{" "}
-          <Route path="stock" element={<AdminStock />} />
-        </Route>
-        {/* =========================================
+              {/* Perhatikan bahwa tag Route ini memiliki tag penutup </Route> */}
+              <Route path="/admin" element={<AdminLayout />}>
+                  {/* Index route ini sekarang berada DI DALAM AdminLayout */}
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="products" element={<AdminProducts />} />{" "}
+                  <Route path="stock" element={<AdminStock />} />
+                  <Route path="expired" element={<AdminExpired />} />
+                  <Route path="settings" element={<AdminSettings />} />
+                  <Route path="branch-sync" element={<AdminBranchSync />} />
+                  <Route path="reports" element={<AdminReports />} />
+              </Route>
+              {/* =========================================
                     4. RUTE KASIR (Nested Routing)
                 ========================================= */}
-        <Route element={<KasirLayout />}>
-          <Route path="/kasir" element={<KasirPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/hold" element={<HoldPage />} />
-          <Route path="/report" element={<ReportPage />} />
-          <Route path="/notifications" element={<NotificationPage />} />
-        </Route>
-        {/* =========================================
+              <Route element={<KasirLayout />}>
+                  <Route path="/kasir" element={<KasirPage />} />
+                  <Route path="/history" element={<HistoryPage />} />
+                  <Route path="/hold" element={<HoldPage />} />
+                  <Route path="/report" element={<ReportPage />} />
+                  <Route path="/notifications" element={<NotificationPage />} />
+              </Route>
+              {/* =========================================
                     5. RUTE PENYELAMAT (404)
                 ========================================= */}
-        {/* Jika user mengetik URL yang tidak ada di atas, lempar ke halaman Login */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+              {/* Jika user mengetik URL yang tidak ada di atas, lempar ke halaman Login */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+      </BrowserRouter>
   );
 }
 export default App;
