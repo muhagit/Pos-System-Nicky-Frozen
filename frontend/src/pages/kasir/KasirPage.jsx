@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import API from "../services/api";
+import API from "../../services/api";
 
-import cashImg from "../assets/payment/cash.png";
-import qrisImg from "../assets/payment/qris.png";
-import transferImg from "../assets/payment/transfer.png";
-import cardImg from "../assets/payment/card.png";
+import cashImg from "../../assets/payment/cash.png";
+import qrisImg from "../../assets/payment/qris.png";
+import transferImg from "../../assets/payment/transfer.png";
+import cardImg from "../../assets/payment/card.png";
 
 import {
   FiShoppingCart,

@@ -1,16 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import LoginPage from "./pages/LoginPage";
-import KasirPage from "./pages/KasirPage";
+import LoginPage from "./pages/auth/LoginPage";
+import KasirPage from "./pages/kasir/KasirPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminStock from "./pages/admin/AdminStock";
-import HistoryPage from "./pages/HistoryPage";
+import HistoryPage from "./pages/kasir/HistoryPage";
 import KasirLayout from "./layouts/KasirLayout";
-import HoldPage from "./pages/HoldPage";
-import ReportPage from "./pages/ReportPage";
-import NotificationPage from "./pages/NotificationPage";
+import HoldPage from "./pages/kasir/HoldPage";
+import ReportPage from "./pages/kasir/ReportPage";
+import NotificationPage from "./pages/kasir/NotificationPage";
 import OwnerLayout from "./layouts/OwnerLayout";
 import DashboardOwner from "./pages/owner/DashboardOwner";
 import UserManagement from "./pages/owner/UserManagement";

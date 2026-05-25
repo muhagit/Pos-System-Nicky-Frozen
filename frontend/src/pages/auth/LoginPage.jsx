@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom"; // Sangat disarankan pakai ini untuk navigasi React
-import API from "../services/api";
+import API from "../../services/api";
 import Swal from "sweetalert2"; // Gunakan huruf kapital 'S' sesuai konvensi
 
 const LoginPage = () => {
