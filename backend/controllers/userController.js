@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import bcrypt from "bcryptjs";
 export const getUsers = async (req, res) => {
     try {
         // Mengambil semua user dari database, kecuali password-nya
@@ -84,21 +85,22 @@ export const registerUser = async (req, res) => {
 
         // Cek apakah username sudah dipakai di database
         const userExists = await User.findOne({ username });
-
         if (userExists) {
-            return res
-                .status(400)
-                .json({
-                    message:
-                        "Username sudah digunakan, silakan pilih yang lain",
-                });
+            return res.status(400).json({
+                message: "Username sudah digunakan, silakan pilih yang lain",
+            });
         }
 
-        // Buat user baru
+        // ==================== 2. HASH PASSWORD DI SINI ====================
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        // ==================================================================
+
+        // 3. Buat user baru dengan password yang sudah terenkripsi (hashedPassword)
         const user = await User.create({
             nama_lengkap,
             username,
-            password,
+            password: hashedPassword, // <--- Masukkan hasil enkripsi ke sini
             role,
             cabang,
             status: status || "Active",

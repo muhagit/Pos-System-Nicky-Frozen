@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import {
@@ -16,11 +16,11 @@ const AdminProducts = () => {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // State untuk Pencarian & Filter
+    // State untuk Pencarian & Filter (Backend)
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
 
-    // State untuk Pagination (Diatur TEPAT 5 per halaman)
+    // State untuk Pagination (Client-side)
     const [currentPage, setCurrentPage] = useState(1);
     const productsPerPage = 5;
 
@@ -28,6 +28,7 @@ const AdminProducts = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentId, setCurrentId] = useState(null);
+    const [imageFile, setImageFile] = useState(null); // State khusus untuk file gambar
     const [formData, setFormData] = useState({
         nama_produk: "",
         kategori: "Nugget",
@@ -38,49 +39,45 @@ const AdminProducts = () => {
     });
 
     const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-    const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
 
     // ================= 1. READ =================
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
+        setIsLoading(true);
         try {
-            const { data } = await axios.get(
-                "http://localhost:5000/api/products",
-                config,
-            );
+            const config = {
+                headers: { Authorization: `Bearer ${userInfo?.token}` },
+            };
+            let url = "http://localhost:5000/api/products?";
+            if (searchQuery) url += `search=${searchQuery}&`;
+            if (selectedCategory !== "All")
+                url += `kategori=${selectedCategory}`;
+
+            const { data } = await axios.get(url, config);
             setProducts(data);
-            setIsLoading(false);
         } catch (error) {
             console.error("Gagal mengambil produk:", error);
+        } finally {
             setIsLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchProducts();
-    }, []);
-
-    useEffect(() => {
-        setCurrentPage(1);
     }, [searchQuery, selectedCategory]);
 
-    // ================= LOGIKA FILTER & PAGINATION =================
-    const filteredProducts = products.filter((product) => {
-        const matchName = product.nama_produk
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase());
-        const matchCategory =
-            selectedCategory === "All" || product.kategori === selectedCategory;
-        return matchName && matchCategory;
-    });
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            fetchProducts();
+            setCurrentPage(1);
+        }, 500);
 
+        return () => clearTimeout(delayDebounceFn);
+    }, [fetchProducts]);
+
+    // ================= LOGIKA PAGINATION =================
     const indexOfLastProduct = currentPage * productsPerPage;
     const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-    const currentProducts = filteredProducts.slice(
+    const currentProducts = products.slice(
         indexOfFirstProduct,
         indexOfLastProduct,
     );
-    const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
-
+    const totalPages = Math.ceil(products.length / productsPerPage);
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     // ================= 2. DELETE =================
@@ -97,6 +94,9 @@ const AdminProducts = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
+                    const config = {
+                        headers: { Authorization: `Bearer ${userInfo?.token}` },
+                    };
                     await axios.delete(
                         `http://localhost:5000/api/products/${id}`,
                         config,
@@ -114,22 +114,45 @@ const AdminProducts = () => {
         });
     };
 
-    // ================= 3. SAVE (Create/Update) =================
+    // ================= 3. SAVE (Create/Update dgn Gambar) =================
     const handleSave = async (e) => {
         e.preventDefault();
+
+        // 1. Buat FormData karena kita mengirim File
+        const submitData = new FormData();
+        submitData.append("nama_produk", formData.nama_produk);
+        submitData.append("kategori", formData.kategori);
+        submitData.append("harga", formData.harga);
+        submitData.append("stok_saat_ini", formData.stok_saat_ini);
+        submitData.append("batas_stok_minimum", formData.batas_stok_minimum);
+        submitData.append("tanggal_expired", formData.tanggal_expired);
+
+        // Append gambar HANYA jika admin memilih gambar baru
+        if (imageFile) {
+            submitData.append("gambar", imageFile);
+        }
+
+        // 2. Setup Headers khusus Multipart
+        const multipartConfig = {
+            headers: {
+                Authorization: `Bearer ${userInfo?.token}`,
+                "Content-Type": "multipart/form-data",
+            },
+        };
+
         try {
             if (isEditing) {
                 await axios.put(
                     `http://localhost:5000/api/products/${currentId}`,
-                    formData,
-                    config,
+                    submitData,
+                    multipartConfig,
                 );
                 Swal.fire("Berhasil!", "Data produk diperbarui.", "success");
             } else {
                 await axios.post(
                     "http://localhost:5000/api/products",
-                    formData,
-                    config,
+                    submitData,
+                    multipartConfig,
                 );
                 Swal.fire("Berhasil!", "Produk baru ditambahkan.", "success");
             }
@@ -146,6 +169,7 @@ const AdminProducts = () => {
 
     // ================= PENDUKUNG MODAL =================
     const openModal = (product = null) => {
+        setImageFile(null); // Reset input file setiap modal dibuka
         if (product) {
             setIsEditing(true);
             setCurrentId(product._id);
@@ -175,6 +199,7 @@ const AdminProducts = () => {
     };
 
     const closeModal = () => setIsModalOpen(false);
+
     const formatRupiah = (number) =>
         new Intl.NumberFormat("id-ID", {
             style: "currency",
@@ -191,7 +216,7 @@ const AdminProducts = () => {
                         Product Management
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">
-                        {products.length} total products
+                        {products.length} total products found
                     </p>
                 </div>
                 <button
@@ -232,13 +257,13 @@ const AdminProducts = () => {
                 </select>
             </div>
 
-            {/* Table Section: PERBAIKAN DI SINI (Ditambahkan h-fit dan flex-1 dihapus) */}
+            {/* Table Section */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-fit flex flex-col overflow-hidden">
                 <div className="w-full">
                     <table className="w-full text-left table-fixed border-collapse">
                         <thead className="bg-gray-50/50">
                             <tr className="text-gray-500 text-sm border-b border-gray-100">
-                                <th className="py-3 px-5 font-medium w-[22%]">
+                                <th className="py-3 px-5 font-medium w-[25%]">
                                     Product Name
                                 </th>
                                 <th className="py-3 px-4 font-medium w-[12%]">
@@ -250,11 +275,8 @@ const AdminProducts = () => {
                                 <th className="py-3 px-4 font-medium w-[10%]">
                                     Stock
                                 </th>
-                                <th className="py-3 px-4 font-medium w-[14%]">
+                                <th className="py-3 px-4 font-medium w-[13%]">
                                     Price
-                                </th>
-                                <th className="py-3 px-4 font-medium w-[12%]">
-                                    Expiry
                                 </th>
                                 <th className="py-3 px-4 font-medium w-[10%]">
                                     Status
@@ -268,16 +290,19 @@ const AdminProducts = () => {
                             {isLoading ? (
                                 <tr>
                                     <td
-                                        colSpan="8"
+                                        colSpan="7"
                                         className="py-8 text-center text-gray-400"
                                     >
-                                        Loading products...
+                                        <div className="flex justify-center items-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                            Loading products...
+                                        </div>
                                     </td>
                                 </tr>
                             ) : currentProducts.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan="8"
+                                        colSpan="7"
                                         className="py-8 text-center text-gray-400"
                                     >
                                         Tidak ada produk ditemukan.
@@ -298,11 +323,29 @@ const AdminProducts = () => {
                                             key={product._id}
                                             className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition"
                                         >
-                                            <td
-                                                className="py-3.5 px-5 font-semibold text-gray-800 truncate"
-                                                title={product.nama_produk}
-                                            >
-                                                {product.nama_produk}
+                                            <td className="py-3.5 px-5 flex items-center gap-3 overflow-hidden">
+                                                {/* Thumbnail Gambar Produk */}
+                                                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
+                                                    {product.gambar ? (
+                                                        <img
+                                                            src={`http://localhost:5000${product.gambar}`}
+                                                            alt={
+                                                                product.nama_produk
+                                                            }
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400">
+                                                            No Img
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span
+                                                    className="font-semibold text-gray-800 truncate"
+                                                    title={product.nama_produk}
+                                                >
+                                                    {product.nama_produk}
+                                                </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-gray-500 text-sm truncate">
                                                 {sku}
@@ -322,11 +365,6 @@ const AdminProducts = () => {
                                             </td>
                                             <td className="py-3.5 px-4 font-bold text-gray-800 truncate">
                                                 {formatRupiah(product.harga)}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-gray-500 text-sm truncate">
-                                                {new Date(
-                                                    product.tanggal_expired,
-                                                ).toLocaleDateString("id-ID")}
                                             </td>
                                             <td className="py-3.5 px-4">
                                                 <span
@@ -377,7 +415,7 @@ const AdminProducts = () => {
                     </table>
                 </div>
 
-                {/* Pagination ditarik langsung ke bawah tabel tanpa mt-auto */}
+                {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="p-3 border-t border-gray-100 bg-gray-50/30 flex items-center justify-end gap-2">
                         <button
@@ -387,7 +425,6 @@ const AdminProducts = () => {
                         >
                             <FiChevronLeft size={18} />
                         </button>
-
                         <div className="text-sm text-gray-600 mx-2">
                             Page{" "}
                             <span className="font-semibold text-gray-800">
@@ -398,7 +435,6 @@ const AdminProducts = () => {
                                 {totalPages}
                             </span>
                         </div>
-
                         <button
                             onClick={() => paginate(currentPage + 1)}
                             disabled={
@@ -412,7 +448,7 @@ const AdminProducts = () => {
                 )}
             </div>
 
-            {/* Modal ... (Tetap sama seperti sebelumnya) */}
+            {/* Modal Form */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in">
@@ -534,22 +570,37 @@ const AdminProducts = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                                    Expiry Date
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={formData.tanggal_expired}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            tanggal_expired: e.target.value,
-                                        })
-                                    }
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:border-primary"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                                        Expiry Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={formData.tanggal_expired}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                tanggal_expired: e.target.value,
+                                            })
+                                        }
+                                        className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:border-primary"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                                        Product Image
+                                    </label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) =>
+                                            setImageFile(e.target.files[0])
+                                        }
+                                        className="w-full border border-gray-300 rounded-xl px-3 py-1.5 focus:outline-none focus:border-primary text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                                    />
+                                </div>
                             </div>
 
                             <div className="mt-4 flex gap-3 justify-end">

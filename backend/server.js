@@ -6,7 +6,9 @@ import productRoutes from "./routes/productRoutes.js"; // <-- Tambahkan ini
 import transactionRoutes from "./routes/transactionRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import path from "path";
 import userRoutes from "./routes/userRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
@@ -23,7 +25,9 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
-
+const __dirname = path.resolve();
+app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
+app.use("/api/dashboard", dashboardRoutes);
 app.get("/", (req, res) => {
     res.send("API Sistem POS Nicky Frozen Berjalan dengan Baik!");
 });

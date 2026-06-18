@@ -28,6 +28,10 @@ const productSchema = new mongoose.Schema(
             type: Date,
             required: true,
         },
+        gambar: {
+            type: String,
+            default: "", // Akan menyimpan path/URL gambar
+        },
     },
     {
         timestamps: true,
