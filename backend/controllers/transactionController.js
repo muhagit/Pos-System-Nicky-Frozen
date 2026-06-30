@@ -1,6 +1,23 @@
 import Transaction from "../models/Transaction.js";
 import Product from "../models/Product.js";
 
+const generateUniqueInvoiceCode = async () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let isUnique = false;
+    let code = "";
+    while (!isUnique) {
+        code = "";
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const exists = await Transaction.findOne({ invoice: code });
+        if (!exists) {
+            isUnique = true;
+        }
+    }
+    return code;
+};
+
 export const createTransaction = async (req, res) => {
     try {
         const {
@@ -10,6 +27,8 @@ export const createTransaction = async (req, res) => {
             total_pembayaran,
             detail_transaksi,
             is_hold,
+            order_id,
+            snap_token, // KUNCI UTAMA: Menangkap snap_token dari request React
         } = req.body;
 
         if (!detail_transaksi || detail_transaksi.length === 0) {
@@ -17,17 +36,103 @@ export const createTransaction = async (req, res) => {
                 .status(400)
                 .json({ message: "Tidak ada produk dalam transaksi" });
         }
+        const baseOrderId = order_id.split("-REV")[0];
+        // 1. CEK APAKAH TRANSAKSI SUDAH ADA (Melanjutkan dari Hold)
+        const existingTrx = await Transaction.findOne({
+            order_id: { $regex: new RegExp("^" + baseOrderId) },
+        });
+        if (existingTrx) {
+            // Jika transaksi sudah lunas / sukses (bukan hold lagi), abaikan request penulisan ulang stok
+            if (!existingTrx.is_hold) {
+                return res.status(200).json({
+                    message: "Transaksi sudah berhasil diproses sebelumnya.",
+                    transaction: existingTrx,
+                });
+            }
 
-        // 1. Cek Ketersediaan Stok
+            // HITUNG DAN VALIDASI STOK SECARA VIRTUAL UNTUK MENCEGAH KEBOCORAN STOK JIKA VALIDASI GAGAL
+            const virtualStocks = {};
+
+            // Tambahkan stok dari transaksi hold lama ke virtual map
+            for (const item of existingTrx.detail_transaksi) {
+                const prodId = item.produk_id.toString();
+                if (!virtualStocks[prodId]) {
+                    const product = await Product.findById(item.produk_id);
+                    virtualStocks[prodId] = {
+                        product,
+                        stok: product ? product.stok_saat_ini : 0,
+                    };
+                }
+                virtualStocks[prodId].stok += item.kuantitas;
+            }
+
+            // Kurangi stok berdasarkan keranjang belanja yang baru di virtual map dan validasi
+            for (const item of detail_transaksi) {
+                const prodId = item.produk_id.toString();
+                if (!virtualStocks[prodId]) {
+                    const product = await Product.findById(item.produk_id);
+                    virtualStocks[prodId] = {
+                        product,
+                        stok: product ? product.stok_saat_ini : 0,
+                    };
+                }
+
+                if (!virtualStocks[prodId].product) {
+                    return res.status(404).json({
+                        message: "Produk tidak ditemukan",
+                    });
+                }
+
+                if (virtualStocks[prodId].stok < item.kuantitas) {
+                    return res.status(400).json({
+                        message: `Stok ${virtualStocks[prodId].product.nama_produk} tidak mencukupi!`,
+                    });
+                }
+                virtualStocks[prodId].stok -= item.kuantitas;
+            }
+
+            // Jika semua validasi lolos, barulah kita simpan data stok baru ke database secara aman
+            for (const prodId in virtualStocks) {
+                const { product, stok } = virtualStocks[prodId];
+                if (product) {
+                    product.stok_saat_ini = stok;
+                    await product.save();
+                }
+            }
+
+            // Update data transaksi lama dengan data revisi baru dari kasir
+            existingTrx.user_id = user_id;
+            existingTrx.order_id = order_id; // KUNCI: Menyimpan ID baru yang memiliki suffix -REV agar sinkron dengan Midtrans
+            existingTrx.metode_pembayaran = metode_pembayaran;
+            existingTrx.total_pembayaran = total_pembayaran;
+            existingTrx.detail_transaksi = detail_transaksi;
+            existingTrx.is_hold = is_hold !== undefined ? is_hold : false;
+
+            if (snap_token) {
+                existingTrx.snap_token = snap_token;
+            }
+
+            if (!existingTrx.invoice) {
+                existingTrx.invoice = await generateUniqueInvoiceCode();
+            }
+
+            await existingTrx.save();
+
+            return res.status(200).json({
+                message: "Transaksi berhasil diperbarui!",
+                transaction: existingTrx,
+            });
+        }
+
+        // ========================================================
+        // 2. JIKA MERUPAKAN TRANSAKSI BARU GRES
+        // ========================================================
         for (const item of detail_transaksi) {
             const product = await Product.findById(item.produk_id);
-
-            if (!product) {
+            if (!product)
                 return res
                     .status(404)
                     .json({ message: `Produk tidak ditemukan` });
-            }
-
             if (product.stok_saat_ini < item.kuantitas) {
                 return res.status(400).json({
                     message: `Stok ${product.nama_produk} tidak mencukupi! Sisa stok: ${product.stok_saat_ini}`,
@@ -35,21 +140,24 @@ export const createTransaction = async (req, res) => {
             }
         }
 
-        // 2. Kurangi Stok Produk
         for (const item of detail_transaksi) {
             const product = await Product.findById(item.produk_id);
             product.stok_saat_ini -= item.kuantitas;
             await product.save();
         }
 
-        // 3. Simpan Data Transaksi
+        const invoiceCode = await generateUniqueInvoiceCode();
+
         const transaction = await Transaction.create({
+            order_id: order_id,
             user_id,
             cabang,
             metode_pembayaran,
             total_pembayaran,
             detail_transaksi,
-            is_hold: is_hold || false,
+            is_hold: is_hold !== undefined ? is_hold : false,
+            snap_token: snap_token || "", // Simpan token ke database
+            invoice: invoiceCode,
         });
 
         res.status(201).json({
@@ -57,6 +165,8 @@ export const createTransaction = async (req, res) => {
             transaction,
         });
     } catch (error) {
+        // Log tambahan agar jika terjadi error, alasannya terlihat jelas di terminal VSCode
+        console.error("Backend Error:", error);
         res.status(500).json({
             message: "Gagal memproses transaksi",
             error: error.message,
@@ -66,18 +176,23 @@ export const createTransaction = async (req, res) => {
 
 export const getTransactions = async (req, res) => {
     try {
-        const transactions = await Transaction.find({})
+        const transactions = await Transaction.find({ is_hold: false })
             .populate("user_id", "nama_lengkap")
+            .populate({
+                path: "detail_transaksi.produk_id",
+                select: "nama_produk harga kategori",
+            })
             .sort({ createdAt: -1 });
 
         const formatted = transactions.map((trx) => ({
             id: trx._id,
-            invoice: trx._id.toString().slice(-6).toUpperCase(),
+            invoice: trx.invoice || trx._id.toString().slice(-6).toUpperCase(),
             customer: trx.user_id?.nama_lengkap || "Walk In Customer",
             payment: trx.metode_pembayaran,
             total: trx.total_pembayaran,
             status: "Success",
             date: trx.createdAt,
+            details: trx.detail_transaksi,
         }));
 
         res.status(200).json(formatted);
@@ -91,21 +206,52 @@ export const getTransactions = async (req, res) => {
 
 export const getHoldTransactions = async (req, res) => {
     try {
+        // Jangan di-map/format ulang, kirim data utuh (raw document) ke frontend
         const data = await Transaction.find({ is_hold: true })
             .populate("user_id", "nama_lengkap")
+            // Populate produk_id di dalam detail_transaksi agar nama produk terbawa ke frontend
+            .populate({
+                path: "detail_transaksi.produk_id",
+                select: "nama_produk harga stok_saat_ini",
+            })
             .sort({ createdAt: -1 });
 
-        const formatted = data.map((trx) => ({
-            id: trx._id,
-            invoice: trx._id.toString().slice(-6).toUpperCase(),
-            customer: trx.user_id?.nama_lengkap || "Walk In Customer",
-            payment: trx.metode_pembayaran,
-            total: trx.total_pembayaran,
-            status: "Hold",
-            date: trx.createdAt,
-        }));
+        // Frontend HoldPage yang baru dibuat sebelumnya sudah menyesuaikan
+        // untuk membaca properti bawaan MongoDB seperti hold._id, hold.createdAt
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
-        res.json(formatted);
+export const deleteTransaction = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const trx = await Transaction.findById(id);
+
+        if (!trx) {
+            return res
+                .status(404)
+                .json({ message: "Transaksi tidak ditemukan" });
+        }
+
+        // Jika transaksi ini adalah Hold, kembalikan stok produknya ke rak
+        if (trx.is_hold) {
+            for (const item of trx.detail_transaksi) {
+                const product = await Product.findById(item.produk_id);
+                if (product) {
+                    product.stok_saat_ini += item.kuantitas;
+                    await product.save();
+                }
+            }
+        }
+
+        // Hapus dari database
+        await Transaction.findByIdAndDelete(id);
+
+        res.status(200).json({
+            message: "Transaksi berhasil dihapus dan stok telah dikembalikan",
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -217,6 +363,35 @@ export const getNotifications = async (req, res) => {
         );
 
         res.json(notifications);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const finalizeTransaction = async (req, res) => {
+    try {
+        const { order_id } = req.body;
+        const baseOrderId = order_id.split("-REV")[0];
+        const trx = await Transaction.findOne({
+            order_id: { $regex: new RegExp("^" + baseOrderId) },
+        });
+
+        if (!trx) {
+            return res
+                .status(404)
+                .json({ message: "Transaksi tidak ditemukan" });
+        }
+
+        if (trx.is_hold) {
+            trx.is_hold = false;
+            await trx.save();
+            console.log(`Transaksi ${order_id} berhasil difinalisasi via fallback.`);
+        }
+
+        res.status(200).json({
+            message: "Transaksi berhasil difinalisasi",
+            transaction: trx,
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

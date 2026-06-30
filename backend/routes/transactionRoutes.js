@@ -5,6 +5,8 @@ import {
     getHoldTransactions,
     getReport,
     getNotifications,
+    deleteTransaction,
+    finalizeTransaction,
 } from "../controllers/transactionController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -15,6 +17,7 @@ const router = express.Router();
 // ==========================================
 // Hanya Kasir dan Admin yang bisa membuat transaksi
 router.post("/", protect, authorize("Kasir", "Admin"), createTransaction);
+router.post("/finalize", protect, authorize("Kasir", "Admin"), finalizeTransaction);
 
 // Owner, Kasir, dan Admin bisa melihat riwayat transaksi
 router.get("/", protect, authorize("Owner", "Kasir", "Admin"), getTransactions);
@@ -41,5 +44,7 @@ router.get(
     authorize("Owner", "Admin", "Kasir"),
     getNotifications,
 );
+
+router.delete("/:id", protect, authorize("Kasir"), deleteTransaction)
 
 export default router;

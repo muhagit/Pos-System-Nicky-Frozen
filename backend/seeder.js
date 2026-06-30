@@ -92,6 +92,7 @@ const importData = async () => {
         // 4. Siapkan Data Dummy Transaksi berdasarkan Produk yang baru dibuat
         const transactions = [
             {
+                invoice: "TRX001",
                 user_id: adminUser._id,
                 cabang: adminUser.cabang,
                 metode_pembayaran: "Cash",
@@ -106,6 +107,7 @@ const importData = async () => {
                 ],
             },
             {
+                invoice: "TRX002",
                 user_id: adminUser._id,
                 cabang: adminUser.cabang,
                 metode_pembayaran: "QRIS",
@@ -120,9 +122,10 @@ const importData = async () => {
                 ],
             },
             {
+                invoice: "TRX003",
                 user_id: adminUser._id,
                 cabang: adminUser.cabang,
-                metode_pembayaran: "GoPay",
+                metode_pembayaran: "QRIS",
                 total_pembayaran: 128000,
                 detail_transaksi: [
                     {
