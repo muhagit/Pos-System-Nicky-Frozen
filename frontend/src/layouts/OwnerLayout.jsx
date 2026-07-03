@@ -7,7 +7,6 @@ import {
   FiBell,
   FiBook,
   FiUsers,
-  FiSettings,
   FiLogOut,
   FiFileText,
 } from "react-icons/fi";
@@ -62,18 +61,13 @@ const OwnerLayout = () => {
       path: "/owner/closing-book",
       icon: <FiBook size={18} />,
     },
-    {
-      name: "Settings",
-      path: "/owner/settings",
-      icon: <FiSettings size={18} />,
-    },
   ];
 
   return (
     <div className="flex h-screen font-poppins bg-background">
 
       {/* SIDEBAR */}
-      <div className="w-[260px] bg-sidebar text-white flex flex-col justify-between py-6 px-4">
+      <div className="w-[260px] bg-sidebar text-white flex flex-col justify-between py-6 px-4 flex-shrink-0">
 
         <div>
 
@@ -162,9 +156,9 @@ const OwnerLayout = () => {
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-hidden bg-background">
+      <main className="flex-1 h-screen overflow-y-auto bg-background">
         <Outlet />
-      </div>
+      </main>
 
     </div>
   );
