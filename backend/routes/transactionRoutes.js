@@ -32,7 +32,7 @@ router.get("/hold", protect, authorize("Kasir", "Admin"), getHoldTransactions);
 // REPORT (LAPORAN)
 // ==========================================
 // Laporan pendapatan biasanya rahasia, hanya untuk Owner dan Admin
-router.get("/report", protect, authorize("Owner", "Admin"), getReport);
+router.get("/report", protect, authorize("Owner", "Admin", "Kasir"), getReport);
 
 // ==========================================
 // NOTIFICATIONS

@@ -39,8 +39,13 @@ const ReportPage = () => {
   useEffect(() => {
     const fetchReport = async () => {
       try {
+        const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+        const config = {
+          headers: { Authorization: `Bearer ${userInfo?.token}` },
+        };
         const res = await axios.get(
           "http://localhost:5000/api/transactions/report",
+          config
         );
 
         setReport(res.data);

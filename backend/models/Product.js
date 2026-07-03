@@ -19,6 +19,11 @@ const productSchema = new mongoose.Schema(
             required: true,
             default: 0,
         },
+        stok_cabang: {
+            type: Map,
+            of: Number,
+            default: {}
+        },
         batas_stok_minimum: {
             type: Number,
             required: true,

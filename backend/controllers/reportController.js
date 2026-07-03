@@ -8,6 +8,8 @@ export const createDailyReport = async (req, res) => {
         const { diperiksa_oleh, cabang, total_kas_fisik, tanggal_laporan } =
             req.body;
 
+        const reportCabang = req.user && req.user.role === "Admin" ? req.user.cabang : cabang;
+
         // 1. Tentukan rentang waktu untuk hari ini (dari 00:00:00 sampai 23:59:59)
         const startOfDay = new Date(tanggal_laporan);
         startOfDay.setHours(0, 0, 0, 0);
@@ -17,7 +19,7 @@ export const createDailyReport = async (req, res) => {
 
         // 2. Cari semua transaksi di cabang tersebut pada hari itu
         const transactions = await Transaction.find({
-            cabang: cabang,
+            cabang: reportCabang,
             createdAt: {
                 $gte: startOfDay,
                 $lte: endOfDay,
@@ -38,7 +40,7 @@ export const createDailyReport = async (req, res) => {
         const report = await DailyReport.create({
             diperiksa_oleh,
             tanggal_laporan,
-            cabang,
+            cabang: reportCabang,
             total_pendapatan_sistem,
             total_kas_fisik,
             selisih,
@@ -61,7 +63,11 @@ export const createDailyReport = async (req, res) => {
 // @route   GET /api/reports
 export const getReports = async (req, res) => {
     try {
-        const reports = await DailyReport.find({}).populate(
+        const query = {};
+        if (req.user && req.user.role === "Admin") {
+            query.cabang = req.user.cabang;
+        }
+        const reports = await DailyReport.find(query).populate(
             "diperiksa_oleh",
             "nama_lengkap role",
         );
