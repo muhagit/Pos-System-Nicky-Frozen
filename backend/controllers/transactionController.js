@@ -1,5 +1,6 @@
 import Transaction from "../models/Transaction.js";
 import Product from "../models/Product.js";
+import StockTransferLog from "../models/StockTransferLog.js";
 
 const generateUniqueInvoiceCode = async () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -331,69 +332,162 @@ export const getReport = async (req, res) => {
 export const getNotifications = async (req, res) => {
     try {
         const notifications = [];
-        const isAdminOrKasir = req.user && (req.user.role === "Admin" || req.user.role === "Kasir");
-        const cabang = isAdminOrKasir ? req.user.cabang : null;
+        const isOwner = req.user && req.user.role === "Owner";
+        const isAdmin = req.user && req.user.role === "Admin";
+        const isKasir = req.user && req.user.role === "Kasir";
+        const cabang = req.user?.cabang || "Cabang Jogja";
 
-        // =========================
-        // 1. TRANSACTION NOTIF
-        // =========================
-        const query = {};
-        if (isAdminOrKasir) {
-            query.cabang = cabang;
-        }
-        const transactions = await Transaction.find(query)
-            .populate("user_id", "nama_lengkap")
-            .sort({ createdAt: -1 })
-            .limit(10);
+        if (isAdmin || isOwner) {
+            // ==========================================
+            // ADMIN & OWNER NOTIFICATIONS
+            // ==========================================
 
-        transactions.forEach((trx) => {
-            notifications.push({
-                type: trx.is_hold ? "hold" : "success",
-                title: trx.is_hold
-                    ? "Transaction Hold"
-                    : "Transaction Success",
-                message: `Invoice ${trx._id
-                    .toString()
-                    .slice(-6)
-                    .toUpperCase()} has been processed.`,
-                time: trx.createdAt,
+            // 1. PRODUCT LOW STOCK & OUT OF STOCK
+            const products = await Product.find({});
+            products.forEach((p) => {
+                const stock = isOwner ? p.stok_saat_ini : (p.stok_cabang?.get(cabang) || 0);
+                const minLimit = p.batas_stok_minimum || 5;
+
+                if (stock <= minLimit && stock > 0) {
+                    notifications.push({
+                        type: "warning",
+                        title: "Low Stock Alert",
+                        message: `${p.nama_produk} stock in ${isOwner ? "all branches" : cabang} is running low (${stock} left).`,
+                        time: p.updatedAt || new Date(),
+                    });
+                } else if (stock === 0) {
+                    notifications.push({
+                        type: "expired",
+                        title: "Out of Stock",
+                        message: `${p.nama_produk} is out of stock in ${isOwner ? "all branches" : cabang}.`,
+                        time: p.updatedAt || new Date(),
+                    });
+                }
+
+                // 2. EXPIRED & EXPIRING SOON MONITORING
+                if (p.tanggal_expired) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const expDate = new Date(p.tanggal_expired);
+                    expDate.setHours(0, 0, 0, 0);
+                    const diffTime = expDate - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays < 0) {
+                        notifications.push({
+                            type: "expired",
+                            title: "Product Expired",
+                            message: `Product ${p.nama_produk} has expired on ${expDate.toLocaleDateString("id-ID")}.`,
+                            time: p.updatedAt || new Date(),
+                        });
+                    } else if (diffDays <= 30) {
+                        notifications.push({
+                            type: "warning",
+                            title: "Expiring Soon",
+                            message: `Product ${p.nama_produk} is expiring in ${diffDays} days (${expDate.toLocaleDateString("id-ID")}).`,
+                            time: p.updatedAt || new Date(),
+                        });
+                    }
+                }
+
+                // 3. PRODUCT CRUD LOGS (recently created or updated in the last 7 days)
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                
+                if (p.createdAt >= sevenDaysAgo) {
+                    notifications.push({
+                        type: "warning",
+                        title: "Product Added",
+                        message: `New product "${p.nama_produk}" has been added to the system.`,
+                        time: p.createdAt,
+                    });
+                } else if (p.updatedAt >= sevenDaysAgo) {
+                    notifications.push({
+                        type: "warning",
+                        title: "Product Updated",
+                        message: `Product "${p.nama_produk}" details have been updated.`,
+                        time: p.updatedAt,
+                    });
+                }
             });
-        });
 
-        // =========================
-        // 2. PRODUCT LOW STOCK
-        // =========================
-        const products = await Product.find({});
-
-        products.forEach((p) => {
-            const stock = isAdminOrKasir 
-                ? (p.stok_cabang ? (p.stok_cabang.get(cabang) || 0) : 0)
-                : p.stok_saat_ini;
-            if (stock <= 5 && stock > 0) {
-                notifications.push({
-                    type: "warning",
-                    title: "Low Stock Alert",
-                    message: `${p.nama_produk} stock is running low (${stock} left).`,
-                    time: new Date(),
-                });
+            // 4. TRANSFER & ADJUSTMENT LOGS
+            const logQuery = {};
+            if (isAdmin) {
+                logQuery.$or = [
+                    { dari_cabang: cabang },
+                    { ke_cabang: cabang }
+                ];
             }
+            const transferLogs = await StockTransferLog.find(logQuery)
+                .populate("produk_id", "nama_produk")
+                .populate("user_id", "nama_lengkap")
+                .sort({ createdAt: -1 })
+                .limit(15);
 
-            if (stock === 0) {
+            transferLogs.forEach((log) => {
+                const prodName = log.produk_id?.nama_produk || "Deleted Product";
+                if (log.tipe === "Transfer") {
+                    notifications.push({
+                        type: "success",
+                        title: "Stock Transfer",
+                        message: `${log.jumlah} unit of ${prodName} transferred from ${log.dari_cabang} to ${log.ke_cabang}.`,
+                        time: log.createdAt,
+                    });
+                } else {
+                    notifications.push({
+                        type: "success",
+                        title: "Stock Adjustment",
+                        message: `Manual adjustment of ${log.jumlah} units for ${prodName} in ${log.ke_cabang}.`,
+                        time: log.createdAt,
+                    });
+                }
+            });
+
+        } else {
+            // ==========================================
+            // KASIR NOTIFICATIONS (Original transactions & stock warnings)
+            // ==========================================
+            const query = { cabang };
+            const transactions = await Transaction.find(query)
+                .populate("user_id", "nama_lengkap")
+                .sort({ createdAt: -1 })
+                .limit(10);
+
+            transactions.forEach((trx) => {
                 notifications.push({
-                    type: "expired",
-                    title: "Out of Stock",
-                    message: `${p.nama_produk} is out of stock.`,
-                    time: new Date(),
+                    type: trx.is_hold ? "hold" : "success",
+                    title: trx.is_hold ? "Transaction Hold" : "Transaction Success",
+                    message: `Invoice ${trx._id.toString().slice(-6).toUpperCase()} has been processed.`,
+                    time: trx.createdAt,
                 });
-            }
-        });
+            });
+
+            const products = await Product.find({});
+            products.forEach((p) => {
+                const stock = p.stok_cabang?.get(cabang) || 0;
+                if (stock <= 5 && stock > 0) {
+                    notifications.push({
+                        type: "warning",
+                        title: "Low Stock Alert",
+                        message: `${p.nama_produk} stock is running low (${stock} left).`,
+                        time: p.updatedAt || new Date(),
+                    });
+                } else if (stock === 0) {
+                    notifications.push({
+                        type: "expired",
+                        title: "Out of Stock",
+                        message: `${p.nama_produk} is out of stock.`,
+                        time: p.updatedAt || new Date(),
+                    });
+                }
+            });
+        }
 
         // SORT NEWEST FIRST
-        notifications.sort(
-            (a, b) => new Date(b.time) - new Date(a.time)
-        );
+        notifications.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-        res.json(notifications);
+        res.json(notifications.slice(0, 25));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

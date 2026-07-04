@@ -15,8 +15,13 @@ const NotificationPage = () => {
   useEffect(() => {
     const fetchNotif = async () => {
       try {
+        const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+        const config = {
+          headers: { Authorization: `Bearer ${userInfo?.token}` },
+        };
         const res = await axios.get(
           "http://localhost:5000/api/transactions/notifications",
+          config
         );
 
         setNotifications(res.data);

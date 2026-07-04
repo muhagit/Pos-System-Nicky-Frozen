@@ -71,7 +71,7 @@ export const createProduct = async (req, res) => {
 export const getProducts = async (req, res) => {
     try {
         // Menangkap parameter dari URL (misal: /api/products?search=ayam&kategori=Nugget)
-        const { search, kategori } = req.query;
+        const { search, kategori, allBranches } = req.query;
         let query = {};
 
         // Filter berdasarkan nama produk (case-insensitive)
@@ -84,19 +84,14 @@ export const getProducts = async (req, res) => {
             query.kategori = kategori;
         }
 
-        if (req.user && (req.user.role === "Kasir" || req.user.role === "Admin")) {
-            const cabang = req.user.cabang || "Cabang Jogja";
-            query[`stok_cabang.${cabang}`] = { $exists: true };
-        }
-
         // Ambil data dari database yang sesuai kriteria dan urutkan dari yang terbaru
         const products = await Product.find(query).sort({ createdAt: -1 });
 
-        // Jika user adalah Kasir atau Admin, tampilkan stok khusus cabang kasir/admin tersebut bertugas
-        if (req.user && (req.user.role === "Kasir" || req.user.role === "Admin")) {
+        // Jika user adalah Kasir atau Admin, tampilkan stok khusus cabang kasir/admin tersebut bertugas (kecuali allBranches=true)
+        if (req.user && (req.user.role === "Kasir" || req.user.role === "Admin") && allBranches !== "true") {
             const cabang = req.user.cabang || "Cabang Jogja";
             const mappedProducts = products.map((product) => {
-                const pObj = product.toObject();
+                const pObj = product.toJSON();
                 // Jika stok_cabang belum terdefinisi, default ke 0
                 pObj.stok_saat_ini = product.stok_cabang 
                     ? (product.stok_cabang.get(cabang) || 0)

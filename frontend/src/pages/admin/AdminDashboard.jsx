@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-    FiSearch,
     FiBell,
-    FiSettings,
     FiPackage,
     FiAlertTriangle,
     FiRefreshCw,
     FiTrendingDown,
     FiTrendingUp,
+    FiX,
 } from "react-icons/fi";
 import {
     BarChart,
@@ -25,9 +25,29 @@ import {
 } from "recharts";
 
 const AdminDashboard = () => {
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [isNotifLoading, setIsNotifLoading] = useState(true);
+
+    const fetchNotifications = async () => {
+        try {
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            const config = {
+                headers: { Authorization: `Bearer ${userInfo?.token}` },
+            };
+            const res = await axios.get("http://localhost:5000/api/transactions/notifications", config);
+            setNotifications(res.data);
+            setIsNotifLoading(false);
+        } catch (error) {
+            console.error("Gagal mengambil notifikasi:", error);
+            setIsNotifLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -53,11 +73,13 @@ const AdminDashboard = () => {
 
         // 1. Ambil data pertama kali saat halaman baru dibuka
         fetchDashboardData();
+        fetchNotifications();
 
         // 2. Fitur REAL-TIME (Polling):
         // Perintahkan React mengambil data ulang setiap 10 detik di belakang layar
         const intervalId = setInterval(() => {
             fetchDashboardData();
+            fetchNotifications();
         }, 10000); // 10000 milidetik = 10 detik
 
         // 3. Cleanup: Hentikan putaran timer jika admin pindah ke halaman lain
@@ -142,27 +164,16 @@ const AdminDashboard = () => {
                 </h2>
 
                 <div className="flex items-center gap-6">
-                    <div className="relative">
-                        <FiSearch
-                            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="pl-11 pr-4 py-2.5 w-64 rounded-full border border-gray-200 bg-white focus:outline-none focus:border-primary text-sm shadow-sm transition-all"
-                        />
-                    </div>
-
                     <div className="flex items-center gap-5 text-gray-500">
-                        <div className="relative cursor-pointer hover:text-primary transition">
+                        <div 
+                            onClick={() => setIsNotifModalOpen(true)}
+                            className="relative cursor-pointer hover:text-primary transition"
+                        >
                             <FiBell size={22} />
-                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"></span>
+                            {notifications.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background"></span>
+                            )}
                         </div>
-                        <FiSettings
-                            size={22}
-                            className="cursor-pointer hover:text-primary transition"
-                        />
                     </div>
                 </div>
             </header>
@@ -484,6 +495,95 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Notification Modal Popup */}
+            {isNotifModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    {/* Modal Overlay Close Trigger */}
+                    <div 
+                        className="absolute inset-0" 
+                        onClick={() => setIsNotifModalOpen(false)}
+                    />
+                    
+                    {/* Modal Content */}
+                    <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh] z-10 border border-gray-100 transform scale-100 transition-all duration-300">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
+                                    <FiBell size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-800 text-lg">Notifications</h3>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        {notifications.length} alerts require your attention
+                                    </p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setIsNotifModalOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition border-none bg-transparent cursor-pointer"
+                            >
+                                <FiX size={20} />
+                            </button>
+                        </div>
+
+                        {/* List */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
+                            {isNotifLoading ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-gray-400">
+                                    <FiRefreshCw className="animate-spin mb-2" size={24} />
+                                    <p className="text-sm">Loading alerts...</p>
+                                </div>
+                            ) : notifications.length === 0 ? (
+                                <div className="py-12 text-center text-gray-400">
+                                    <FiBell size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">No new admin notifications.</p>
+                                </div>
+                            ) : (
+                                notifications.map((notif, index) => {
+                                    let iconColor = "bg-blue-50 text-blue-600";
+                                    let iconEl = <FiBell size={18} />;
+
+                                    if (notif.type === "expired") {
+                                        iconColor = "bg-rose-50 text-rose-600";
+                                        iconEl = <FiAlertTriangle size={18} />;
+                                    } else if (notif.type === "warning") {
+                                        iconColor = "bg-amber-50 text-amber-600";
+                                        iconEl = <FiAlertTriangle size={18} />;
+                                    } else if (notif.type === "success") {
+                                        iconColor = "bg-emerald-50 text-emerald-600";
+                                        iconEl = <FiRefreshCw size={18} />;
+                                    }
+
+                                    return (
+                                        <div 
+                                            key={index}
+                                            className="flex gap-4 p-4 hover:bg-gray-50 rounded-2xl transition border border-gray-50 hover:border-gray-100 text-left"
+                                        >
+                                            <div className={`p-3 rounded-xl h-11 w-11 flex items-center justify-center shrink-0 ${iconColor}`}>
+                                                {iconEl}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h4 className="font-bold text-gray-800 text-sm truncate">{notif.title}</h4>
+                                                    <span className="text-[10px] text-gray-400 shrink-0">
+                                                        {new Date(notif.time).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{notif.message}</p>
+                                                <span className="text-[9px] text-gray-400 mt-1 block">
+                                                    {new Date(notif.time).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

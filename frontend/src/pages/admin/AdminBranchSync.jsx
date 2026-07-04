@@ -54,7 +54,7 @@ const AdminBranchSync = () => {
         setIsLoading(true);
         try {
             const [prodRes, logRes] = await Promise.all([
-                API.get("/products", config),
+                API.get("/products?allBranches=true", config),
                 API.get("/products/transfer-logs", config)
             ]);
             setProducts(prodRes.data);

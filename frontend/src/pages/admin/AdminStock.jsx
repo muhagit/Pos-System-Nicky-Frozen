@@ -151,13 +151,6 @@ const AdminStock = () => {
                         Manage inventory movements
                     </p>
                 </div>
-                {/* Menyisakan hanya tombol Transfer */}
-                <button
-                    onClick={() => handleFeatureSoon("Transfer Branch")}
-                    className="bg-primary hover:bg-cyan-500 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition shadow-md shadow-cyan-500/30 cursor-pointer border-none"
-                >
-                    <FiRefreshCw size={20} /> Transfer Branch
-                </button>
             </div>
 
             {/* Filter Section (Ditambahkan mirip AdminProducts) */}

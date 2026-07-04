@@ -79,3 +79,24 @@ export const getReports = async (req, res) => {
         });
     }
 };
+
+// @desc    Echo base64 data back as a downloadable file attachment
+// @route   POST /api/reports/download-echo
+export const downloadEcho = async (req, res) => {
+    try {
+        const { base64Data, filename, contentType } = req.body;
+        if (!base64Data || !filename || !contentType) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const buffer = Buffer.from(base64Data, "base64");
+
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Length", buffer.length);
+
+        res.send(buffer);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
