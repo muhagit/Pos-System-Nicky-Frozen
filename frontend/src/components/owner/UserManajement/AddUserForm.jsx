@@ -209,9 +209,8 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                             className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
                         >
                             <option value="">Select Branch</option>
-                            <option value="Cabang 1">Cabang 1</option>
-                            <option value="Cabang 2">Cabang 2</option>
-                            <option value="Cabang 3">Cabang 3</option>
+                            <option value="Cabang Jogja">Cabang Jogja</option>
+                            <option value="Cabang Solo">Cabang Solo</option>
                         </select>
                     </div>
 

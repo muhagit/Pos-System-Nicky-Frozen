@@ -31,6 +31,8 @@ export const createTransaction = async (req, res) => {
             snap_token, // KUNCI UTAMA: Menangkap snap_token dari request React
         } = req.body;
 
+        const branchName = (cabang && cabang !== "Pusat") ? cabang : "Cabang Jogja";
+
         if (!detail_transaksi || detail_transaksi.length === 0) {
             return res
                 .status(400)
@@ -50,7 +52,8 @@ export const createTransaction = async (req, res) => {
                 });
             }
 
-            // HITUNG DAN VALIDASI STOK SECARA VIRTUAL UNTUK MENCEGAH KEBOCORAN STOK JIKA VALIDASI GAGAL
+            // Resolve branch name
+            const branchName = (cabang && cabang !== "Pusat") ? cabang : "Cabang Jogja";
             const virtualStocks = {};
 
             // Tambahkan stok dari transaksi hold lama ke virtual map
@@ -58,9 +61,10 @@ export const createTransaction = async (req, res) => {
                 const prodId = item.produk_id.toString();
                 if (!virtualStocks[prodId]) {
                     const product = await Product.findById(item.produk_id);
+                    const initStock = product ? (product.stok_cabang ? (product.stok_cabang.get(branchName) || 0) : 0) : 0;
                     virtualStocks[prodId] = {
                         product,
-                        stok: product ? product.stok_saat_ini : 0,
+                        stok: initStock,
                     };
                 }
                 virtualStocks[prodId].stok += item.kuantitas;
@@ -71,9 +75,10 @@ export const createTransaction = async (req, res) => {
                 const prodId = item.produk_id.toString();
                 if (!virtualStocks[prodId]) {
                     const product = await Product.findById(item.produk_id);
+                    const initStock = product ? (product.stok_cabang ? (product.stok_cabang.get(branchName) || 0) : 0) : 0;
                     virtualStocks[prodId] = {
                         product,
-                        stok: product ? product.stok_saat_ini : 0,
+                        stok: initStock,
                     };
                 }
 
@@ -85,7 +90,7 @@ export const createTransaction = async (req, res) => {
 
                 if (virtualStocks[prodId].stok < item.kuantitas) {
                     return res.status(400).json({
-                        message: `Stok ${virtualStocks[prodId].product.nama_produk} tidak mencukupi!`,
+                        message: `Stok ${virtualStocks[prodId].product.nama_produk} tidak mencukupi di ${branchName}!`,
                     });
                 }
                 virtualStocks[prodId].stok -= item.kuantitas;
@@ -95,7 +100,8 @@ export const createTransaction = async (req, res) => {
             for (const prodId in virtualStocks) {
                 const { product, stok } = virtualStocks[prodId];
                 if (product) {
-                    product.stok_saat_ini = stok;
+                    product.stok_cabang.set(branchName, stok);
+                    product.stok_saat_ini = Array.from(product.stok_cabang.values()).reduce((a, b) => a + b, 0);
                     await product.save();
                 }
             }
@@ -133,16 +139,20 @@ export const createTransaction = async (req, res) => {
                 return res
                     .status(404)
                     .json({ message: `Produk tidak ditemukan` });
-            if (product.stok_saat_ini < item.kuantitas) {
+            
+            const currentBranchStock = product.stok_cabang ? (product.stok_cabang.get(branchName) || 0) : 0;
+            if (currentBranchStock < item.kuantitas) {
                 return res.status(400).json({
-                    message: `Stok ${product.nama_produk} tidak mencukupi! Sisa stok: ${product.stok_saat_ini}`,
+                    message: `Stok ${product.nama_produk} tidak mencukupi di ${branchName}! Sisa stok: ${currentBranchStock}`,
                 });
             }
         }
 
         for (const item of detail_transaksi) {
             const product = await Product.findById(item.produk_id);
-            product.stok_saat_ini -= item.kuantitas;
+            const currentBranchStock = product.stok_cabang ? (product.stok_cabang.get(branchName) || 0) : 0;
+            product.stok_cabang.set(branchName, Math.max(0, currentBranchStock - item.kuantitas));
+            product.stok_saat_ini = Array.from(product.stok_cabang.values()).reduce((a, b) => a + b, 0);
             await product.save();
         }
 
@@ -176,7 +186,11 @@ export const createTransaction = async (req, res) => {
 
 export const getTransactions = async (req, res) => {
     try {
-        const transactions = await Transaction.find({ is_hold: false })
+        const query = { is_hold: false };
+        if (req.user && (req.user.role === "Admin" || req.user.role === "Kasir")) {
+            query.cabang = req.user.cabang;
+        }
+        const transactions = await Transaction.find(query)
             .populate("user_id", "nama_lengkap")
             .populate({
                 path: "detail_transaksi.produk_id",
@@ -206,8 +220,12 @@ export const getTransactions = async (req, res) => {
 
 export const getHoldTransactions = async (req, res) => {
     try {
+        const query = { is_hold: true };
+        if (req.user && (req.user.role === "Admin" || req.user.role === "Kasir")) {
+            query.cabang = req.user.cabang;
+        }
         // Jangan di-map/format ulang, kirim data utuh (raw document) ke frontend
-        const data = await Transaction.find({ is_hold: true })
+        const data = await Transaction.find(query)
             .populate("user_id", "nama_lengkap")
             // Populate produk_id di dalam detail_transaksi agar nama produk terbawa ke frontend
             .populate({
@@ -259,7 +277,11 @@ export const deleteTransaction = async (req, res) => {
 
 export const getReport = async (req, res) => {
     try {
-        const transactions = await Transaction.find({ is_hold: false })
+        const query = { is_hold: false };
+        if (req.user && (req.user.role === "Admin" || req.user.role === "Kasir")) {
+            query.cabang = req.user.cabang;
+        }
+        const transactions = await Transaction.find(query)
             .populate("user_id", "nama_lengkap")
             .sort({ createdAt: -1 });
 
@@ -309,11 +331,17 @@ export const getReport = async (req, res) => {
 export const getNotifications = async (req, res) => {
     try {
         const notifications = [];
+        const isAdminOrKasir = req.user && (req.user.role === "Admin" || req.user.role === "Kasir");
+        const cabang = isAdminOrKasir ? req.user.cabang : null;
 
         // =========================
         // 1. TRANSACTION NOTIF
         // =========================
-        const transactions = await Transaction.find({})
+        const query = {};
+        if (isAdminOrKasir) {
+            query.cabang = cabang;
+        }
+        const transactions = await Transaction.find(query)
             .populate("user_id", "nama_lengkap")
             .sort({ createdAt: -1 })
             .limit(10);
@@ -338,16 +366,19 @@ export const getNotifications = async (req, res) => {
         const products = await Product.find({});
 
         products.forEach((p) => {
-            if (p.stok_saat_ini <= 5 && p.stok_saat_ini > 0) {
+            const stock = isAdminOrKasir 
+                ? (p.stok_cabang ? (p.stok_cabang.get(cabang) || 0) : 0)
+                : p.stok_saat_ini;
+            if (stock <= 5 && stock > 0) {
                 notifications.push({
                     type: "warning",
                     title: "Low Stock Alert",
-                    message: `${p.nama_produk} stock is running low (${p.stok_saat_ini} left).`,
+                    message: `${p.nama_produk} stock is running low (${stock} left).`,
                     time: new Date(),
                 });
             }
 
-            if (p.stok_saat_ini === 0) {
+            if (stock === 0) {
                 notifications.push({
                     type: "expired",
                     title: "Out of Stock",
