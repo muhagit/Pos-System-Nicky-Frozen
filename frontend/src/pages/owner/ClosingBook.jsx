@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import api from "../../utils/api";
 import {
   FiCalendar,
   FiDollarSign,
@@ -9,39 +10,72 @@ import {
 } from "react-icons/fi";
 
 const ClosingBook = () => {
-  // ======================
-  // DUMMY DATA
-  // ======================
-  const data = {
-    totalTransaksi: 128,
-    totalPendapatan: 5250000,
+  const [data, setData] = useState({
+  totalTransaksi: 0,
+  totalPendapatan: 0,
 
-    cash: {
-      transaksi: 80,
-      nominal: 3000000,
-    },
+  cash: {
+    transaksi: 0,
+    nominal: 0,
+  },
 
-    qris: {
-      transaksi: 35,
-      nominal: 1500000,
-    },
+  qris: {
+    transaksi: 0,
+    nominal: 0,
+  },
 
-    gopay: {
-      transaksi: 13,
-      nominal: 750000,
-    },
+  gopay: {
+    transaksi: 0,
+    nominal: 0,
+  },
 
-    selisihKas: {
-      status: false,
-      detail: "Tidak ditemukan selisih antara sistem dan kasir hari ini",
-    },
-  };
+  selisihKas: {
+    status: false,
+    detail: "Belum dilakukan tutup buku",
+  },
+});
 
-  // ======================
-  // STATE
-  // ======================
-  const [now, setNow] = useState(new Date());
-  const [isClosed, setIsClosed] = useState(false);
+const [now, setNow] = useState(new Date());
+const [isClosed, setIsClosed] = useState(false);
+const fetchReport = async () => {
+  try {
+    const res = await api.get("/transactions/report");
+
+    const report = res.data;
+
+    setData({
+      totalTransaksi: report.totalTransactions || 0,
+      totalPendapatan: report.totalRevenue || 0,
+
+      cash: {
+        transaksi: report.paymentMethods?.Cash || 0,
+        nominal: 0,
+      },
+
+      qris: {
+        transaksi: report.paymentMethods?.QRIS || 0,
+        nominal: 0,
+      },
+
+      gopay: {
+        transaksi: report.paymentMethods?.Transfer || 0,
+        nominal: 0,
+      },
+
+      selisihKas: {
+        status: false,
+        detail: "Belum dilakukan tutup buku",
+      },
+    });
+  } catch (err) {
+    console.log(err);
+  }
+};
+ 
+useEffect(() => {
+  fetchReport();
+}, []);
+
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -88,6 +122,31 @@ const ClosingBook = () => {
       </div>
     );
   };
+const handleClosingBook = async () => {
+  try {
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+
+    await api.post("/reports/tutup-buku", {
+  diperiksa_oleh: userInfo._id,
+  cabang: userInfo.cabang,
+  total_kas_fisik: data.totalPendapatan,
+  tanggal_laporan: new Date(),
+});
+
+await fetchReport();
+
+setIsClosed(true);
+
+    await fetchReport();
+
+    setIsClosed(true);
+
+    alert("Tutup buku berhasil");
+  } catch (err) {
+    console.log(err);
+    alert("Gagal tutup buku");
+  }
+};
 
   return (
     <div className="p-6 space-y-6">
@@ -217,7 +276,8 @@ const ClosingBook = () => {
         </div>
 
         <button
-          disabled={isClosed}
+  onClick={handleClosingBook}
+  disabled={isClosed}
           className={`px-5 py-3 rounded-xl font-semibold transition-all ${
             isClosed
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"

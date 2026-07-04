@@ -1,4 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import api from "../utils/api";
 
 import {
   FiHome,
@@ -22,7 +24,27 @@ const OwnerLayout = () => {
     navigate("/");
   };
 
-  const unreadNotif = 0;
+  const [unreadNotif, setUnreadNotif] = useState(0);
+  const fetchNotifications = async () => {
+  try {
+    const res = await api.get("/transactions/notifications");
+
+    const unread = res.data.filter((item) => !item.isRead).length;
+
+    setUnreadNotif(unread);
+  } catch (error) {
+    console.error("Gagal mengambil notifikasi", error);
+  }
+};
+useEffect(() => {
+  fetchNotifications();
+
+  const interval = setInterval(() => {
+    fetchNotifications();
+  }, 10000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const menus = [
     {
