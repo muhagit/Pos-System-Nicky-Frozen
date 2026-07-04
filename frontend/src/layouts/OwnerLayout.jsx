@@ -22,7 +22,7 @@ const OwnerLayout = () => {
     navigate("/");
   };
 
-  const unreadNotif = 3;
+  const unreadNotif = 0;
 
   const menus = [
     {
