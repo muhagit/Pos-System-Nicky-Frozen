@@ -23,6 +23,92 @@ const KasirPage = () => {
     const [holdOrderId, setHoldOrderId] = useState(null);
     const [holdSnapToken, setHoldSnapToken] = useState(null);
     const [revisionCount, setRevisionCount] = useState(0); 
+
+    // Shift States (API-driven)
+    const [activeShift, setActiveShift] = useState(null);
+    const [shiftLoading, setShiftLoading] = useState(true);
+    const [shiftName, setShiftName] = useState("Shift 1");
+    const [modalAwalInput, setModalAwalInput] = useState("");
+    const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
+
+    const checkActiveShift = async () => {
+        try {
+            const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
+            const { data } = await API.get("/reports/active-shift", config);
+            setActiveShift(data.activeShift);
+        } catch (error) {
+            console.error("Gagal cek shift:", error);
+        } finally {
+            setShiftLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        checkActiveShift();
+    }, []);
+
+    const handleStartShift = async () => {
+        if (shiftName === "Shift 1") {
+            const modalValue = Number(modalAwalInput);
+            if (!modalAwalInput || isNaN(modalValue) || modalValue < 0) {
+                Swal.fire("Peringatan", "Masukkan nominal modal awal yang valid!", "warning");
+                return;
+            }
+        }
+
+        try {
+            const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
+            const payload = { shift: shiftName };
+            if (shiftName === "Shift 1") payload.modal_awal = Number(modalAwalInput);
+
+            const { data } = await API.post("/reports/start-shift", payload, config);
+            setActiveShift(data.record);
+            setIsStartShiftModalOpen(false); // Close modal on success
+
+            Swal.fire({
+                icon: "success",
+                title: "Shift Dimulai!",
+                text: `${shiftName} berhasil diaktifkan.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            Swal.fire("Gagal", error.response?.data?.message || "Gagal memulai shift", "error");
+        }
+    };
+
+    const handleEndShift = async () => {
+        const result = await Swal.fire({
+            title: "Akhiri Shift?",
+            text: `Data transaksi ${activeShift?.shift} akan disimpan. POS akan dinonaktifkan sampai shift berikutnya dimulai.`,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#0891b2",
+            cancelButtonColor: "#6b7280",
+            confirmButtonText: "Ya, Akhiri Shift",
+            cancelButtonText: "Batal"
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
+            await API.post("/reports/end-shift", {}, config);
+
+            // Recheck shift status from backend (which will now be null)
+            await checkActiveShift();
+
+            Swal.fire({
+                icon: "success",
+                title: "Shift Selesai!",
+                text: "Data transaksi shift telah disimpan.",
+                confirmButtonColor: "#0891b2",
+            });
+        } catch (error) {
+            Swal.fire("Gagal", error.response?.data?.message || "Gagal mengakhiri shift", "error");
+        }
+    };
+
     // FETCH PRODUCT
     const fetchProducts = async () => {
         try {
@@ -115,6 +201,13 @@ const KasirPage = () => {
 
     // ADD TO CART
     const addToCart = (product) => {
+        if (!activeShift) {
+            return Swal.fire(
+                "Peringatan",
+                "Harap mulai shift kerja terlebih dahulu untuk melakukan transaksi!",
+                "warning"
+            );
+        }
         // PERBAIKAN: Ubah .stok menjadi .stok_saat_ini
         if (product.stok_saat_ini <= 0) {
             return Swal.fire(
@@ -150,6 +243,13 @@ const KasirPage = () => {
 
     // UPDATE QTY (Tombol + / - di keranjang)
     const updateQty = (id, delta) => {
+        if (!activeShift) {
+            return Swal.fire(
+                "Peringatan",
+                "Harap mulai shift kerja terlebih dahulu untuk melakukan transaksi!",
+                "warning"
+            );
+        }
         setCartItems((prev) =>
             prev.map((item) => {
                 if (item._id === id) {
@@ -187,6 +287,13 @@ const KasirPage = () => {
     // HANDLE CHECKOUT (PROSES KE BACKEND)
     // HANDLE CHECKOUT (PROSES KE BACKEND)
     const handlePayment = async () => {
+        if (!activeShift) {
+            return Swal.fire(
+                "Peringatan",
+                "Harap mulai shift kerja terlebih dahulu untuk melakukan transaksi!",
+                "warning"
+            );
+        }
         if (cartItems.length === 0) {
             return Swal.fire(
                 "Gagal",
@@ -439,14 +546,35 @@ const KasirPage = () => {
             <div className="flex-1 p-6 overflow-hidden">
                 {/* TOPBAR */}
                 <div className="flex justify-between items-center">
-                    <h1 className="text-4xl font-bold text-text">
-                        Cashier Dashboard
-                    </h1>
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        className="w-[300px] bg-white border border-border rounded-2xl px-5 py-3 outline-none"
-                    />
+                    <div>
+                        <h1 className="text-4xl font-bold text-text">
+                            Cashier Dashboard
+                        </h1>
+                        {activeShift ? (
+                            <p className="text-text-secondary text-sm font-semibold mt-1">
+                                <span className="text-primary font-bold">{activeShift.shift}</span> • Modal Awal: <span className="text-primary font-bold">Rp {(activeShift.modal_awal || 0).toLocaleString("id-ID")}</span>
+                            </p>
+                        ) : (
+                            <p className="text-amber-500 text-sm font-semibold mt-1 animate-pulse">
+                                Shift Belum Dimulai • Klik "Mulai Shift Kerja" untuk mengaktifkan POS
+                            </p>
+                        )}
+                    </div>
+                    {activeShift ? (
+                        <button
+                            onClick={handleEndShift}
+                            className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-2xl font-bold transition shadow-md shadow-red-500/20 cursor-pointer border-none flex items-center gap-2"
+                        >
+                            Akhiri Shift
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setIsStartShiftModalOpen(true)}
+                            className="bg-primary hover:bg-primary-dark text-white px-5 py-3 rounded-2xl font-bold transition shadow-md shadow-cyan-500/20 cursor-pointer border-none flex items-center gap-2"
+                        >
+                            Mulai Shift Kerja
+                        </button>
+                    )}
                 </div>
 
                 {/* CONTENT */}
@@ -693,6 +821,87 @@ const KasirPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Mulai Shift Overlay */}
+            {isStartShiftModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full mx-4 border border-gray-100 text-left relative">
+                        {/* Close icon */}
+                        <button
+                            onClick={() => setIsStartShiftModalOpen(false)}
+                            className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition border-none bg-transparent cursor-pointer"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <h2 className="text-3xl font-extrabold text-gray-800">Mulai Shift Kerja</h2>
+                            <p className="text-sm text-gray-500 mt-2">
+                                Pilih shift dan aktifkan mesin POS kasir.
+                            </p>
+                        </div>
+
+                        <div className="space-y-5">
+                            {/* Shift Selector */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    Pilih Shift Kerja
+                                </label>
+                                <select
+                                    value={shiftName}
+                                    onChange={(e) => setShiftName(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm font-semibold focus:border-primary focus:bg-white transition"
+                                >
+                                    <option value="Shift 1">Shift 1 (08:00 - 15:00)</option>
+                                    <option value="Shift 2">Shift 2 (15:00 - 22:00)</option>
+                                </select>
+                            </div>
+
+                            {/* Modal Awal Input — hanya tampil untuk Shift 1 */}
+                            {shiftName === "Shift 1" && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                        Uang Modal Awal (Rp)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">Rp</span>
+                                        <input
+                                            type="number"
+                                            placeholder="Contoh: 150000"
+                                            value={modalAwalInput}
+                                            onChange={(e) => setModalAwalInput(e.target.value)}
+                                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm font-semibold focus:border-primary focus:bg-white transition"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {shiftName === "Shift 2" && (
+                                <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl text-xs text-blue-700 font-medium">
+                                    Shift 2 melanjutkan kas dari Shift 1. Modal awal tidak perlu dimasukkan ulang.
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => setIsStartShiftModalOpen(false)}
+                                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl text-sm font-bold transition cursor-pointer border-none"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={handleStartShift}
+                                    className="flex-1 bg-primary hover:bg-primary-dark text-white py-3 rounded-xl text-sm font-bold transition shadow-lg shadow-cyan-500/20 cursor-pointer border-none"
+                                >
+                                    Mulai Shift
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };;

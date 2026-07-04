@@ -11,6 +11,17 @@ const dailyReportSchema = new mongoose.Schema(
             type: Date,
             required: true,
         },
+        shift: {
+            type: String,
+            required: true,
+            enum: ["Shift 1", "Shift 2", "Tutup Buku Harian"],
+            default: "Tutup Buku Harian",
+        },
+        modal_awal: {
+            type: Number,
+            required: true,
+            default: 0,
+        },
         cabang: {
             type: String,
             required: true,
@@ -18,6 +29,14 @@ const dailyReportSchema = new mongoose.Schema(
         total_pendapatan_sistem: {
             type: Number,
             required: true,
+        },
+        total_pendapatan_cash: {
+            type: Number,
+            default: 0,
+        },
+        total_pendapatan_digital: {
+            type: Number,
+            default: 0,
         },
         total_kas_fisik: {
             type: Number,
