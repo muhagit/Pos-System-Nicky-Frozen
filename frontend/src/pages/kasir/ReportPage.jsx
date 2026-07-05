@@ -43,7 +43,8 @@ const ReportPage = () => {
         const interval = setInterval(() => setCurrentHour(new Date().getHours()), 60000);
         return () => clearInterval(interval);
     }, []);
-    const isTutupBukuAllowed = currentHour >= 21;
+    // Bypass restriction for testing: set isTutupBukuAllowed to true directly
+    const isTutupBukuAllowed = true; // currentHour >= 21;
 
     const formatRupiah = (number) =>
         new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(number || 0);

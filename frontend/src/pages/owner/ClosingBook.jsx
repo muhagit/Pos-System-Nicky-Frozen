@@ -83,7 +83,8 @@ useEffect(() => {
   }, []);
 
   const hour = now.getHours();
-  const autoTrigger = hour >= 21;
+  // Bypass auto close for testing
+  const autoTrigger = false; // hour >= 21;
 
   useEffect(() => {
     if (autoTrigger && !isClosed) {
