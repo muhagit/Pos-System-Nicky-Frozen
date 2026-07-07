@@ -36,6 +36,165 @@ const KasirPage = () => {
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [sortBy, setSortBy] = useState("default");
 
+    // Tour/Onboarding States
+    const [isTourActive, setIsTourActive] = useState(false);
+    const [currentTourStep, setCurrentTourStep] = useState(0);
+    const [activeTargetRect, setActiveTargetRect] = useState(null);
+
+    // Tour Step Definitions
+    const tourSteps = [
+        {
+            target: "center",
+            title: "Selamat Datang di POS Nicky Frozen! 🎉",
+            description: "Halo! Kami telah menyiapkan panduan singkat untuk membantu Anda mengenali fitur-fitur penting di halaman POS kasir ini.",
+            position: "center"
+        },
+        {
+            target: "#tour-shift-btn",
+            title: "Mulai & Akhiri Shift Kerja 🕒",
+            description: "Sebelum melayani pembeli, harap klik tombol 'Mulai Shift Kerja' untuk mengaktifkan POS, memilih shift, dan memasukkan modal awal. Di akhir shift, klik tombol 'Akhiri Shift' untuk merekap total penjualan Anda.",
+            position: "bottom"
+        },
+        {
+            target: "#tour-search-filter",
+            title: "Pencarian, Filter & Sorting 🔍",
+            description: "Cari produk dengan mengetikkan nama, saring berdasarkan Kategori cepat, atau urutkan produk berdasarkan abjad maupun produk terbaru.",
+            position: "bottom"
+        },
+        {
+            target: "#tour-product-grid",
+            title: "Katalog Produk 📦",
+            description: "Klik pada kartu produk apa saja untuk memasukkannya ke dalam keranjang belanja. Stok produk yang kosong akan otomatis terkunci.",
+            position: "right"
+        },
+        {
+            target: "#tour-cart",
+            title: "Keranjang Belanja & Pembayaran 💳",
+            description: "Atur kuantitas item, pilih metode pembayaran (Cash/QRIS), dan lakukan checkout. Untuk pembayaran Cash, kami menyediakan kalkulator kembalian otomatis!",
+            position: "left"
+        },
+        {
+            target: "#tour-sidebar",
+            title: "Menu Navigasi Sidebar 📋",
+            description: "Gunakan menu sidebar ini untuk mengakses Laporan Tutup Buku harian (Report), melihat daftar transaksi tunda (Hold), atau melihat Riwayat Transaksi (History).",
+            position: "right"
+        }
+    ];
+
+    // Run only once on mount / login check
+    useEffect(() => {
+        if (userInfo) {
+            const hasSeen = localStorage.getItem(`nicky_seen_tour_${userInfo.username}`);
+            if (!hasSeen) {
+                const timer = setTimeout(() => {
+                    setIsTourActive(true);
+                    setCurrentTourStep(0);
+                }, 1000);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [userInfo]);
+
+    // Recalculate target position whenever step changes
+    useEffect(() => {
+        if (!isTourActive) {
+            setActiveTargetRect(null);
+            return;
+        }
+
+        const step = tourSteps[currentTourStep];
+        if (step.target === "center") {
+            setActiveTargetRect(null);
+            return;
+        }
+
+        const element = document.querySelector(step.target);
+        if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            const updateRect = () => {
+                setActiveTargetRect(element.getBoundingClientRect());
+            };
+            updateRect();
+            window.addEventListener("resize", updateRect);
+            window.addEventListener("scroll", updateRect, true);
+            return () => {
+                window.removeEventListener("resize", updateRect);
+                window.removeEventListener("scroll", updateRect, true);
+            };
+        } else {
+            setActiveTargetRect(null);
+        }
+    }, [isTourActive, currentTourStep]);
+
+    const handleNextStep = () => {
+        if (currentTourStep < tourSteps.length - 1) {
+            setCurrentTourStep(currentTourStep + 1);
+        } else {
+            handleCompleteTour();
+        }
+    };
+
+    const handlePrevStep = () => {
+        if (currentTourStep > 0) {
+            setCurrentTourStep(currentTourStep - 1);
+        }
+    };
+
+    const handleCompleteTour = () => {
+        setIsTourActive(false);
+        if (userInfo) {
+            localStorage.setItem(`nicky_seen_tour_${userInfo.username}`, "true");
+        }
+    };
+
+    const handleRestartTour = () => {
+        setCurrentTourStep(0);
+        setIsTourActive(true);
+    };
+
+    const getTooltipStyles = (rect, position) => {
+        if (position === "center" || !rect) {
+            return {
+                position: "fixed",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                zIndex: 100,
+            };
+        }
+
+        const margin = 16;
+        let top = 0;
+        let left = 0;
+
+        if (position === "bottom") {
+            top = rect.bottom + margin;
+            left = rect.left + rect.width / 2 - 192; // Half of tooltip max-w-sm (384px)
+        } else if (position === "top") {
+            top = rect.top - 200 - margin;
+            left = rect.left + rect.width / 2 - 192;
+        } else if (position === "left") {
+            top = rect.top + rect.height / 2 - 100;
+            left = rect.left - 384 - margin;
+        } else if (position === "right") {
+            top = rect.top + rect.height / 2 - 100;
+            left = rect.right + margin;
+        }
+
+        // Keep inside bounds
+        if (left < 10) left = 10;
+        if (left + 394 > window.innerWidth) left = window.innerWidth - 404;
+        if (top < 10) top = 10;
+        if (top + 200 > window.innerHeight) top = window.innerHeight - 210;
+
+        return {
+            position: "fixed",
+            top: `${top}px`,
+            left: `${left}px`,
+            zIndex: 100,
+        };
+    };
+
     // Dynamic categories extraction
     const categories = ["All", ...new Set(products.map((p) => p.kategori).filter(Boolean))];
 
@@ -675,9 +834,20 @@ const KasirPage = () => {
                 {/* TOPBAR */}
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-4xl font-bold text-text">
-                            Cashier Dashboard
-                        </h1>
+                        <div className="flex items-center gap-2">
+                            <h1 id="tour-welcome" className="text-4xl font-bold text-text">
+                                Cashier Dashboard
+                            </h1>
+                            <button
+                                onClick={handleRestartTour}
+                                className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-primary transition cursor-pointer border-none bg-transparent mt-1"
+                                title="Buka Panduan POS (User Guide)"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </button>
+                        </div>
                         {activeShift ? (
                             <p className="text-text-secondary text-sm font-semibold mt-1">
                                 <span className="text-primary font-bold">{activeShift.shift}</span> • Modal Awal: <span className="text-primary font-bold">Rp {(activeShift.modal_awal || 0).toLocaleString("id-ID")}</span>
@@ -690,6 +860,7 @@ const KasirPage = () => {
                     </div>
                     {activeShift ? (
                         <button
+                            id="tour-shift-btn"
                             onClick={handleEndShift}
                             className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-2xl font-bold transition shadow-md shadow-red-500/20 cursor-pointer border-none flex items-center gap-2"
                         >
@@ -697,6 +868,7 @@ const KasirPage = () => {
                         </button>
                     ) : (
                         <button
+                            id="tour-shift-btn"
                             onClick={() => setIsStartShiftModalOpen(true)}
                             className="bg-primary hover:bg-primary-dark text-white px-5 py-3 rounded-2xl font-bold transition shadow-md shadow-cyan-500/20 cursor-pointer border-none flex items-center gap-2"
                         >
@@ -710,7 +882,7 @@ const KasirPage = () => {
                     {/* PRODUCT AREA */}
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                         {/* SEARCH & SORT */}
-                        <div className="bg-white rounded-3xl p-5 shadow-sm">
+                        <div id="tour-search-filter" className="bg-white rounded-3xl p-5 shadow-sm">
                             <div className="flex gap-4">
                                 <input
                                     type="text"
@@ -749,7 +921,7 @@ const KasirPage = () => {
                         </div>
 
                         {/* PRODUCT GRID */}
-                        <div className="grid grid-cols-3 gap-5 mt-6">
+                        <div id="tour-product-grid" className="grid grid-cols-3 gap-5 mt-6">
                             {processedProducts.map((product) => (
                                 <div
                                     key={product._id}
@@ -793,7 +965,7 @@ const KasirPage = () => {
                     </div>
 
                     {/* CART AREA */}
-                    <div className="w-[400px] bg-white rounded-3xl p-6 flex flex-col shadow-sm">
+                    <div id="tour-cart" className="w-[400px] bg-white rounded-3xl p-6 flex flex-col shadow-sm">
                         <h2 className="text-2xl font-bold text-text">
                             Shopping Cart
                         </h2>
@@ -1048,6 +1220,96 @@ const KasirPage = () => {
                                     className="flex-1 bg-primary hover:bg-primary-dark text-white py-3 rounded-xl text-sm font-bold transition shadow-lg shadow-cyan-500/20 cursor-pointer border-none"
                                 >
                                     Mulai Shift
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Onboarding Guide Tour Overlay */}
+            {isTourActive && (
+                <div className="fixed inset-0 z-[100] font-poppins">
+                    {/* SVG Mask Spotlight Overlay */}
+                    <svg className="fixed inset-0 w-full h-full pointer-events-auto" style={{ zIndex: 90 }}>
+                        <defs>
+                            <mask id="spotlight-mask">
+                                <rect width="100%" height="100%" fill="white" />
+                                {activeTargetRect && (
+                                    <rect
+                                        x={activeTargetRect.x - 8}
+                                        y={activeTargetRect.y - 8}
+                                        width={activeTargetRect.width + 16}
+                                        height={activeTargetRect.height + 16}
+                                        rx="16"
+                                        fill="black"
+                                    />
+                                )}
+                            </mask>
+                        </defs>
+                        <rect
+                            width="100%"
+                            height="100%"
+                            fill="rgba(15, 23, 42, 0.75)"
+                            mask="url(#spotlight-mask)"
+                        />
+                    </svg>
+
+                    {/* Tooltip Card */}
+                    <div
+                        style={getTooltipStyles(activeTargetRect, tourSteps[currentTourStep].position)}
+                        className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-gray-100 relative transition-all duration-300 transform scale-100"
+                    >
+                        {/* Skip Button */}
+                        <button
+                            onClick={handleCompleteTour}
+                            className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition border-none bg-transparent cursor-pointer"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        {/* Title & Description */}
+                        <div>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-primary">
+                                Panduan POS • Langkah {currentTourStep + 1} dari {tourSteps.length}
+                            </span>
+                            <h3 className="font-extrabold text-gray-800 text-lg mt-1">
+                                {tourSteps[currentTourStep].title}
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                                {tourSteps[currentTourStep].description}
+                            </p>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+                            {/* Skip */}
+                            <button
+                                onClick={handleCompleteTour}
+                                className="text-xs font-bold text-gray-400 hover:text-gray-600 transition border-none bg-transparent cursor-pointer"
+                            >
+                                Lewati
+                            </button>
+
+                            <div className="flex gap-2">
+                                {/* Previous */}
+                                {currentTourStep > 0 && (
+                                    <button
+                                        onClick={handlePrevStep}
+                                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition border-none cursor-pointer"
+                                    >
+                                        Kembali
+                                    </button>
+                                )}
+
+                                {/* Next / Selesai */}
+                                <button
+                                    onClick={handleNextStep}
+                                    className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition shadow-lg shadow-cyan-500/20 border-none cursor-pointer"
+                                >
+                                    {currentTourStep === tourSteps.length - 1 ? "Selesai" : "Lanjut"}
                                 </button>
                             </div>
                         </div>

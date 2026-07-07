@@ -22,7 +22,7 @@ const KasirLayout = () => {
   return (
     <div className="flex h-screen bg-background font-poppins">
       {/* SIDEBAR */}
-      <div className="w-[280px] bg-sidebar text-white flex flex-col justify-between p-5">
+      <div id="tour-sidebar" className="w-[280px] bg-sidebar text-white flex flex-col justify-between p-5">
         <div>
           {/* LOGO */}
           <div>
