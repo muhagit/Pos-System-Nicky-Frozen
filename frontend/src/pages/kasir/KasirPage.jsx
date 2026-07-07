@@ -93,7 +93,7 @@ const KasirPage = () => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [userInfo]);
+    }, [userInfo?.username]);
 
     // Recalculate target position whenever step changes
     useEffect(() => {
