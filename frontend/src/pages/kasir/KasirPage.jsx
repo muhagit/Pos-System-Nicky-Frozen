@@ -31,6 +31,34 @@ const KasirPage = () => {
     const [modalAwalInput, setModalAwalInput] = useState("");
     const [isStartShiftModalOpen, setIsStartShiftModalOpen] = useState(false);
 
+    // Search, Filter & Sort States
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [sortBy, setSortBy] = useState("default");
+
+    // Dynamic categories extraction
+    const categories = ["All", ...new Set(products.map((p) => p.kategori).filter(Boolean))];
+
+    // Search, Filter & Sort Logic
+    const processedProducts = products
+        .filter((product) => {
+            const matchesSearch = product.nama_produk.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesCategory = selectedCategory === "All" || product.kategori === selectedCategory;
+            return matchesSearch && matchesCategory;
+        })
+        .sort((a, b) => {
+            if (sortBy === "alphabetical-asc") {
+                return a.nama_produk.localeCompare(b.nama_produk);
+            }
+            if (sortBy === "alphabetical-desc") {
+                return b.nama_produk.localeCompare(a.nama_produk);
+            }
+            if (sortBy === "newest") {
+                return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
+            }
+            return 0;
+        });
+
     const checkActiveShift = async () => {
         try {
             const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
@@ -310,20 +338,20 @@ const KasirPage = () => {
             );
         }
 
-        // TAMPILKAN KONFIRMASI DETAIL PESANAN
+        const isCash = paymentMethod === "Cash";
         const cartHtml = `
             <div class="text-left font-poppins text-gray-700">
                 <div class="mb-4">
                     <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Metode Pembayaran</span>
                     <div class="flex items-center gap-2 mt-1">
-                        <span class="px-3 py-1.5 bg-primary/10 text-primary rounded-xl text-sm font-bold">
-                            ${paymentMethod === "QRIS" ? "E-Money / Transfer (Midtrans)" : "Cash (Tunai)"}
+                        <span class="px-3 py-1.5 ${isCash ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'} rounded-xl text-sm font-bold">
+                            ${isCash ? "Cash (Tunai)" : "E-Money / Transfer (Midtrans)"}
                         </span>
                     </div>
                 </div>
                 
                 <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-2">Detail Item</span>
-                <div class="max-h-48 overflow-y-auto mb-4 border border-gray-100 rounded-xl p-3 bg-gray-50 space-y-2">
+                <div class="max-h-36 overflow-y-auto mb-4 border border-gray-100 rounded-xl p-3 bg-gray-50 space-y-2">
                     ${cartItems.map(item => `
                         <div class="flex justify-between items-center text-sm py-1 border-b border-gray-200/50 last:border-0">
                             <div class="truncate max-w-[220px]">
@@ -346,9 +374,42 @@ const KasirPage = () => {
                     </div>
                     <div class="flex justify-between font-bold text-lg mt-2 pt-2 border-t text-primary">
                         <span>Total Bayar</span>
-                        <span>Rp ${total.toLocaleString("id-ID")}</span>
+                        <span id="cash-total-val" data-total="${total}">Rp ${total.toLocaleString("id-ID")}</span>
                     </div>
                 </div>
+
+                ${isCash ? `
+                <div class="mt-4 pt-3 border-t border-dashed border-gray-200">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        Uang Diterima (Rp)
+                    </label>
+                    <input
+                        type="number"
+                        id="cash-received-input"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-md font-bold focus:border-primary focus:bg-white transition"
+                        placeholder="Masukkan uang yang diterima..."
+                        min="${total}"
+                    />
+                    
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <button type="button" class="cash-shortcut-btn px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded-lg transition border-none cursor-pointer" data-val="${total}">Uang Pas</button>
+                        <button type="button" class="cash-shortcut-btn px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded-lg transition border-none cursor-pointer" data-val="10000">10k</button>
+                        <button type="button" class="cash-shortcut-btn px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded-lg transition border-none cursor-pointer" data-val="20000">20k</button>
+                        <button type="button" class="cash-shortcut-btn px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded-lg transition border-none cursor-pointer" data-val="50000">50k</button>
+                        <button type="button" class="cash-shortcut-btn px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-bold rounded-lg transition border-none cursor-pointer" data-val="100000">100k</button>
+                    </div>
+                </div>
+
+                <div class="mt-4 bg-gray-50 border border-gray-100 p-4 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Kembalian</span>
+                        <span id="cash-change-display" class="text-xl font-extrabold text-gray-500 mt-1 block">Rp 0</span>
+                    </div>
+                    <div id="cash-status-badge" class="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold">
+                        Belum Bayar
+                    </div>
+                </div>
+                ` : ""}
             </div>
         `;
 
@@ -365,12 +426,78 @@ const KasirPage = () => {
                 popup: "rounded-3xl p-6",
                 confirmButton: "rounded-2xl px-6 py-3 font-bold text-white text-sm focus:outline-none mr-2",
                 cancelButton: "rounded-2xl px-6 py-3 font-bold text-white text-sm focus:outline-none"
+            },
+            didOpen: () => {
+                if (!isCash) return;
+                
+                const input = Swal.getHtmlContainer().querySelector("#cash-received-input");
+                const changeDisplay = Swal.getHtmlContainer().querySelector("#cash-change-display");
+                const statusBadge = Swal.getHtmlContainer().querySelector("#cash-status-badge");
+                const confirmButton = Swal.getConfirmButton();
+
+                confirmButton.disabled = true;
+
+                const updateTotalChange = (val) => {
+                    const received = Number(val) || 0;
+                    const change = received - total;
+
+                    if (received === 0) {
+                        changeDisplay.textContent = "Rp 0";
+                        changeDisplay.className = "text-xl font-extrabold text-gray-500 mt-1 block";
+                        statusBadge.textContent = "Belum Bayar";
+                        statusBadge.className = "px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold";
+                        confirmButton.disabled = true;
+                    } else if (change < 0) {
+                        changeDisplay.textContent = `- Rp ${Math.abs(change).toLocaleString("id-ID")}`;
+                        changeDisplay.className = "text-xl font-extrabold text-red-500 mt-1 block";
+                        statusBadge.textContent = "Kurang Uang";
+                        statusBadge.className = "px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold";
+                        confirmButton.disabled = true;
+                    } else {
+                        changeDisplay.textContent = `Rp ${change.toLocaleString("id-ID")}`;
+                        changeDisplay.className = "text-xl font-extrabold text-emerald-600 mt-1 block";
+                        statusBadge.textContent = change === 0 ? "Pas / Balance" : "Kembalian Cukup";
+                        statusBadge.className = "px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold";
+                        confirmButton.disabled = false;
+                    }
+                };
+
+                input.addEventListener("input", (e) => {
+                    updateTotalChange(e.target.value);
+                });
+
+                const shortcutBtns = Swal.getHtmlContainer().querySelectorAll(".cash-shortcut-btn");
+                shortcutBtns.forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const val = Number(btn.getAttribute("data-val"));
+                        if (val === total) {
+                            input.value = total;
+                        } else {
+                            input.value = val;
+                        }
+                        updateTotalChange(input.value);
+                    });
+                });
+            },
+            preConfirm: () => {
+                if (isCash) {
+                    const inputVal = Swal.getHtmlContainer().querySelector("#cash-received-input").value;
+                    const received = Number(inputVal) || 0;
+                    if (received < total) {
+                        Swal.showValidationMessage("Uang diterima tidak boleh kurang dari total bayar!");
+                        return false;
+                    }
+                    return { received, change: received - total };
+                }
+                return true;
             }
         });
 
         if (!result.isConfirmed) {
             return; // Hentikan proses jika kasir membatalkan
         }
+
+        const changeAmount = isCash && result.value ? result.value.change : null;
 
         setIsSubmitting(true);
 
@@ -400,16 +527,17 @@ const KasirPage = () => {
         };
 
         // FUNGSI PEMBANTU: Untuk menyimpan data transaksi resmi ke database (LUNAS)
-        const saveTransactionToDatabase = async (finalPayload) => {
+        const saveTransactionToDatabase = async (finalPayload, change = null) => {
             try {
                 await API.post("/transactions", finalPayload, config);
 
                 Swal.fire({
                     icon: "success",
                     title: "Transaksi Berhasil!",
-                    text: "Pembayaran telah diterima dan stok otomatis berkurang.",
-                    timer: 2000,
-                    showConfirmButton: false,
+                    text: change !== null
+                        ? `Pembayaran diterima. Kembalian: Rp ${change.toLocaleString("id-ID")}`
+                        : "Pembayaran telah diterima dan stok otomatis berkurang.",
+                    confirmButtonColor: "#059669",
                 });
 
                 // --- AREA RESET STATE KASIR ---
@@ -536,7 +664,7 @@ const KasirPage = () => {
 
         // ALUR LOGIKAL: Cash (Pembayaran Tunai)
         if (paymentMethod === "Cash") {
-            await saveTransactionToDatabase(payload);
+            await saveTransactionToDatabase(payload, changeAmount);
         }
     };
 
@@ -581,24 +709,48 @@ const KasirPage = () => {
                 <div className="flex gap-6 mt-8 h-[calc(100vh-120px)]">
                     {/* PRODUCT AREA */}
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                        {/* SEARCH */}
+                        {/* SEARCH & SORT */}
                         <div className="bg-white rounded-3xl p-5 shadow-sm">
-                            <input
-                                type="text"
-                                placeholder="Search products..."
-                                className="w-full border border-border rounded-2xl p-4 outline-none focus:border-primary"
-                            />
+                            <div className="flex gap-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search products..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="flex-1 border border-border rounded-2xl p-4 outline-none focus:border-primary text-sm font-medium"
+                                />
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="border border-border rounded-2xl px-4 py-2 outline-none focus:border-primary text-sm font-semibold bg-gray-50 cursor-pointer"
+                                >
+                                    <option value="default">Default Sort</option>
+                                    <option value="alphabetical-asc">Name: A to Z</option>
+                                    <option value="alphabetical-desc">Name: Z to A</option>
+                                    <option value="newest">Recently Updated</option>
+                                </select>
+                            </div>
                             {/* CATEGORY */}
-                            <div className="flex gap-4 mt-5 overflow-x-auto">
-                                <button className="bg-primary text-white px-6 py-3 rounded-2xl whitespace-nowrap">
-                                    All
-                                </button>
+                            <div className="flex gap-4 mt-5 overflow-x-auto pb-2 custom-scrollbar">
+                                {categories.map((cat) => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setSelectedCategory(cat)}
+                                        className={`px-6 py-3 rounded-2xl whitespace-nowrap font-bold text-sm border-none cursor-pointer transition-all duration-200 ${
+                                            selectedCategory === cat
+                                                ? "bg-primary text-white shadow-md shadow-cyan-500/10"
+                                                : "bg-gray-100 text-gray-500 hover:bg-gray-250"
+                                        }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
                         {/* PRODUCT GRID */}
                         <div className="grid grid-cols-3 gap-5 mt-6">
-                            {products.map((product) => (
+                            {processedProducts.map((product) => (
                                 <div
                                     key={product._id}
                                     onClick={() => addToCart(product)}
