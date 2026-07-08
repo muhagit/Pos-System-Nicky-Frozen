@@ -201,6 +201,8 @@ export const getReports = async (req, res) => {
         const query = {};
         if (req.user && (req.user.role === "Admin" || req.user.role === "Kasir")) {
             query.cabang = req.user.cabang;
+        } else if (req.query.cabang) {
+            query.cabang = req.query.cabang;
         }
         const reports = await DailyReport.find(query)
             .populate("diperiksa_oleh", "nama_lengkap role")
@@ -219,7 +221,10 @@ export const getReports = async (req, res) => {
 export const getReportDetail = async (req, res) => {
     try {
         const { tanggal } = req.params; // format: YYYY-MM-DD
-        const cabang = req.user.cabang;
+        let cabang = req.user.cabang;
+        if (req.user && (req.user.role === "Owner" || req.user.role === "Admin") && req.query.cabang) {
+            cabang = req.query.cabang;
+        }
 
         // Ambil shift records hari itu
         const shifts = await ShiftRecord.find({ cabang, tanggal })

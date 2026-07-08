@@ -55,7 +55,7 @@ const RevenueChart = ({ data = defaultData }) => {
       <div className="mb-4">
         <h2 className="font-semibold text-text text-sm">Penjualan Mingguan</h2>
         <p className="text-xs text-text-secondary mt-0.5">
-          Perbandingan Cabang A vs Cabang B
+          Perbandingan Cabang Solo vs Cabang Jogja
         </p>
       </div>
 
@@ -103,7 +103,7 @@ const RevenueChart = ({ data = defaultData }) => {
           <Area
             type="monotone"
             dataKey="cabangA"
-            name="Cabang A"
+            name="Cabang Solo"
             stroke="#22d3ee"
             strokeWidth={2}
             fill="url(#gradCabangA)"
@@ -111,7 +111,7 @@ const RevenueChart = ({ data = defaultData }) => {
           <Area
             type="monotone"
             dataKey="cabangB"
-            name="Cabang B"
+            name="Cabang Jogja"
             stroke="#10b981"
             strokeWidth={2}
             fill="url(#gradCabangB)"

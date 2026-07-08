@@ -279,12 +279,19 @@ export const deleteTransaction = async (req, res) => {
 export const getReport = async (req, res) => {
     try {
         const query = { is_hold: false };
+        const allQuery = {};
         if (req.user && (req.user.role === "Admin" || req.user.role === "Kasir")) {
             query.cabang = req.user.cabang;
+            allQuery.cabang = req.user.cabang;
+        } else if (req.query.cabang && req.query.cabang !== "Gabungan") {
+            query.cabang = req.query.cabang;
+            allQuery.cabang = req.query.cabang;
         }
-        const transactions = await Transaction.find(query)
-            .populate("user_id", "nama_lengkap")
-            .sort({ createdAt: -1 });
+        
+        const [transactions, totalAll] = await Promise.all([
+            Transaction.find(query).populate("user_id", "nama_lengkap").sort({ createdAt: -1 }),
+            Transaction.countDocuments(allQuery)
+        ]);
 
         // TOTAL REVENUE
         const totalRevenue = transactions.reduce(
@@ -318,11 +325,73 @@ export const getReport = async (req, res) => {
             total: trx.total_pembayaran,
         }));
 
+        // BRANCH BREAKDOWN
+        const branchBreakdown = {};
+        transactions.forEach((trx) => {
+            const b = trx.cabang || "Pusat";
+            if (!branchBreakdown[b]) {
+                branchBreakdown[b] = {
+                    revenue: 0,
+                    transactions: 0,
+                    cash: 0,
+                    qris: 0,
+                    transfer: 0,
+                    card: 0,
+                };
+            }
+            branchBreakdown[b].revenue += trx.total_pembayaran;
+            branchBreakdown[b].transactions += 1;
+            if (trx.metode_pembayaran === "Cash") branchBreakdown[b].cash += trx.total_pembayaran;
+            else if (trx.metode_pembayaran === "QRIS") branchBreakdown[b].qris += trx.total_pembayaran;
+            else if (trx.metode_pembayaran === "Transfer") branchBreakdown[b].transfer += trx.total_pembayaran;
+            else if (trx.metode_pembayaran === "Card") branchBreakdown[b].card += trx.total_pembayaran;
+        });
+
+        const conversionRate = totalAll > 0 ? Math.round((totalTransactions / totalAll) * 100) : 100;
+        const customers = Math.ceil(totalTransactions * 0.95);
+
+        // 7-day revenue trend data
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+
+        const trx7Days = await Transaction.find({
+            ...query,
+            createdAt: { $gte: sevenDaysAgo, $lt: tomorrow }
+        });
+
+        const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+        const trendMap = {};
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(sevenDaysAgo);
+            d.setDate(d.getDate() + i);
+            const dayName = days[d.getDay()];
+            trendMap[dayName] = { hari: dayName, revenue: 0, orders: 0 };
+        }
+
+        trx7Days.forEach((t) => {
+            const dayName = days[t.createdAt.getDay()];
+            if (trendMap[dayName]) {
+                trendMap[dayName].revenue += t.total_pembayaran;
+                trendMap[dayName].orders += 1;
+            }
+        });
+        const trendData = Object.values(trendMap);
+
         res.json({
             totalRevenue,
             totalTransactions,
             paymentMethods,
             recent,
+            branchBreakdown,
+            conversionRate,
+            customers,
+            trendData,
         });
     } catch (error) {
         res.status(500).json({ message: error.message });

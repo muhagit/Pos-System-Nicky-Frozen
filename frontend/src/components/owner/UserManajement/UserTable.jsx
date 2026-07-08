@@ -1,13 +1,32 @@
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 const UserTable = ({
-    users,
+    users = [],
     isLoading,
     fetchUsers,
     setShowEditModal,
     setSelectedUser,
 }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const usersPerPage = 5;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [users]);
+
+    // ================= LOGIKA PAGINATION =================
+    const indexOfLastUser = currentPage * usersPerPage;
+    const indexOfFirstUser = indexOfLastUser - usersPerPage;
+    const currentUsers = (users || []).slice(
+        indexOfFirstUser,
+        indexOfLastUser,
+    );
+    const totalPages = Math.ceil((users || []).length / usersPerPage);
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
     // Fungsi untuk menghapus user
     const handleDelete = (id) => {
         Swal.fire({
@@ -99,7 +118,7 @@ const UserTable = ({
                             </td>
                         </tr>
                     ) : (
-                        users.map((user) => {
+                        currentUsers.map((user) => {
                             // Mengambil inisial huruf pertama dari nama lengkap
                             const initial = user.nama_lengkap
                                 ? user.nama_lengkap.charAt(0).toUpperCase()
@@ -177,6 +196,38 @@ const UserTable = ({
                     )}
                 </tbody>
             </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="p-3 border-t border-border mt-4 flex items-center justify-end gap-2 bg-transparent">
+                    <button
+                        onClick={() => paginate(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-border text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background transition flex items-center justify-center bg-transparent cursor-pointer"
+                    >
+                        <FiChevronLeft size={18} />
+                    </button>
+                    <div className="text-sm text-text-secondary mx-2">
+                        Page{" "}
+                        <span className="font-semibold text-text">
+                            {totalPages === 0 ? 0 : currentPage}
+                        </span>{" "}
+                        of{" "}
+                        <span className="font-semibold text-text">
+                            {totalPages}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => paginate(currentPage + 1)}
+                        disabled={
+                            currentPage === totalPages || totalPages === 0
+                        }
+                        className="p-2 rounded-lg border border-border text-text-secondary disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background transition flex items-center justify-center bg-transparent cursor-pointer"
+                    >
+                        <FiChevronRight size={18} />
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

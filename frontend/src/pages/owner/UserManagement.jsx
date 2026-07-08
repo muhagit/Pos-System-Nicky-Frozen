@@ -13,6 +13,8 @@ const UserManagement = () => {
     // State baru untuk menyimpan data dari backend
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedRole, setSelectedRole] = useState("All");
+    const [selectedBranch, setSelectedBranch] = useState("All");
 
     // Fungsi untuk mengambil data user dari backend
     const fetchUsers = async () => {
@@ -42,6 +44,28 @@ const UserManagement = () => {
         fetchUsers();
     }, []);
 
+    // Reset filter cabang ketika filter role berubah
+    useEffect(() => {
+        setSelectedBranch("All");
+    }, [selectedRole]);
+
+    // Filter user berdasarkan role dan cabang yang dipilih
+    const filteredUsers = users.filter(user => {
+        // Filter berdasarkan role
+        if (selectedRole !== "All") {
+            if (!user.role || user.role.toLowerCase() !== selectedRole.toLowerCase()) {
+                return false;
+            }
+        }
+        // Filter berdasarkan cabang (hanya jika role adalah Kasir dan cabang bukan "All")
+        if (selectedRole === "Kasir" && selectedBranch !== "All") {
+            if (!user.cabang || user.cabang.toLowerCase() !== selectedBranch.toLowerCase()) {
+                return false;
+            }
+        }
+        return true;
+    });
+
     return (
         <div className="p-6 min-h-screen bg-background overflow-y-auto">
             {/* HEADER */}
@@ -66,10 +90,93 @@ const UserManagement = () => {
                 </button>
             </div>
 
+            {/* FILTER ROLE */}
+            <div className="flex items-center gap-2 mb-6 bg-card border border-border p-1.5 rounded-2xl shadow-sm w-fit">
+                <button
+                    onClick={() => setSelectedRole("All")}
+                    className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                        selectedRole === "All"
+                            ? "bg-primary text-sidebar shadow-sm"
+                            : "text-text-secondary hover:text-text hover:bg-background"
+                    }`}
+                >
+                    Semua Role
+                </button>
+                <button
+                    onClick={() => setSelectedRole("Owner")}
+                    className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                        selectedRole === "Owner"
+                            ? "bg-primary text-sidebar shadow-sm"
+                            : "text-text-secondary hover:text-text hover:bg-background"
+                    }`}
+                >
+                    Owner
+                </button>
+                <button
+                    onClick={() => setSelectedRole("Admin")}
+                    className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                        selectedRole === "Admin"
+                            ? "bg-primary text-sidebar shadow-sm"
+                            : "text-text-secondary hover:text-text hover:bg-background"
+                    }`}
+                >
+                    Admin
+                </button>
+                <button
+                    onClick={() => setSelectedRole("Kasir")}
+                    className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                        selectedRole === "Kasir"
+                            ? "bg-primary text-sidebar shadow-sm"
+                            : "text-text-secondary hover:text-text hover:bg-background"
+                    }`}
+                >
+                    Kasir
+                </button>
+            </div>
+
+            {/* FILTER CABANG KASIR */}
+            {selectedRole === "Kasir" && (
+                <div className="flex items-center gap-2 mb-6 bg-card border border-border p-1.5 rounded-2xl shadow-sm w-fit animate-fade-in">
+                    <span className="text-xs font-semibold text-text-secondary px-3 select-none">
+                        Cabang Kasir:
+                    </span>
+                    <button
+                        onClick={() => setSelectedBranch("All")}
+                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                            selectedBranch === "All"
+                                ? "bg-primary text-sidebar shadow-sm"
+                                : "text-text-secondary hover:text-text hover:bg-background"
+                        }`}
+                    >
+                        Semua Cabang
+                    </button>
+                    <button
+                        onClick={() => setSelectedBranch("Cabang Solo")}
+                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                            selectedBranch === "Cabang Solo"
+                                ? "bg-primary text-sidebar shadow-sm"
+                                : "text-text-secondary hover:text-text hover:bg-background"
+                        }`}
+                    >
+                        Cabang Solo
+                    </button>
+                    <button
+                        onClick={() => setSelectedBranch("Cabang Jogja")}
+                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                            selectedBranch === "Cabang Jogja"
+                                ? "bg-primary text-sidebar shadow-sm"
+                                : "text-text-secondary hover:text-text hover:bg-background"
+                        }`}
+                    >
+                        Cabang Jogja
+                    </button>
+                </div>
+            )}
+
             {/* TABLE */}
             {/* Oper data users dan fetchUsers ke dalam tabel */}
             <UserTable
-                users={users}
+                users={filteredUsers}
                 isLoading={isLoading}
                 fetchUsers={fetchUsers}
                 setShowEditModal={setShowEditModal}

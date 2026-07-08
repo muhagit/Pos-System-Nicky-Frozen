@@ -72,17 +72,6 @@ useEffect(() => {
       path: "/owner/users",
       icon: <FiUsers size={18} />,
     },
-    {
-      name: "Notifications",
-      path: "/owner/notifications",
-      icon: <FiBell size={18} />,
-      badge: unreadNotif,
-    },
-    {
-      name: "Closing Book",
-      path: "/owner/closing-book",
-      icon: <FiBook size={18} />,
-    },
   ];
 
   return (

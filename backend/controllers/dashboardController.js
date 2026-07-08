@@ -1,5 +1,7 @@
 import Transaction from "../models/Transaction.js";
 import Product from "../models/Product.js";
+import DailyReport from "../models/DailyReport.js";
+import ShiftRecord from "../models/ShiftRecord.js";
 
 export const getOwnerDashboard = async (req, res) => {
     try {
@@ -71,23 +73,47 @@ export const getOwnerDashboard = async (req, res) => {
         });
 
         // 4. RINGKASAN CABANG (Group by Cabang)
-        const cabangMap = {};
-        trxToday.forEach((t) => {
-            if (!cabangMap[t.cabang]) {
-                cabangMap[t.cabang] = {
-                    nama: t.cabang,
-                    penjualan: 0,
-                    transaksi: 0,
-                    kas: 0,
-                    selisih: false,
-                    nominalSelisih: 0,
-                };
-            }
-            cabangMap[t.cabang].penjualan += t.total_pembayaran;
-            cabangMap[t.cabang].transaksi += 1;
-            cabangMap[t.cabang].kas += t.total_pembayaran;
+        const branchesList = ["Cabang Solo", "Cabang Jogja"];
+        const reportsToday = await DailyReport.find({
+            createdAt: { $gte: today, $lt: tomorrow }
         });
-        const cabang = Object.values(cabangMap);
+        const cabang = [];
+        for (const name of branchesList) {
+            const branchTrxToday = trxToday.filter(t => t.cabang === name);
+            const penjualan = branchTrxToday.reduce((sum, t) => sum + t.total_pembayaran, 0);
+            const transaksi = branchTrxToday.length;
+
+            const report = reportsToday.find(r => r.cabang === name);
+            const selisih = report ? (report.selisih !== 0) : false;
+            const nominalSelisih = report ? report.selisih : 0;
+
+            const activeShift = await ShiftRecord.findOne({ cabang: name, status: "Aktif" });
+            const isOnline = !!activeShift;
+
+            const lastTrx = await Transaction.findOne({ cabang: name }).sort({ createdAt: -1 });
+            const lastSync = lastTrx ? lastTrx.createdAt : null;
+
+            const shiftsToday = await ShiftRecord.find({
+                cabang: name,
+                tanggal: new Date().toISOString().slice(0, 10)
+            });
+            const modalAwal = shiftsToday.reduce((sum, s) => sum + (s.modal_awal || 0), 0);
+            const cashToday = branchTrxToday
+                .filter(t => t.metode_pembayaran === "Cash")
+                .reduce((sum, t) => sum + t.total_pembayaran, 0);
+            const kas = modalAwal + cashToday;
+
+            cabang.push({
+                nama: name,
+                penjualan,
+                transaksi,
+                kas,
+                selisih,
+                nominalSelisih,
+                isOnline,
+                lastSync
+            });
+        }
 
         // 5. DATA CHART KATEGORI (Metode Pembayaran Hari Ini)
         const metodeMap = { Cash: 0, QRIS: 0, Transfer: 0, Card: 0 };
@@ -120,12 +146,15 @@ export const getOwnerDashboard = async (req, res) => {
             const dayName = days[t.createdAt.getDay()];
             if (revenueMap[dayName]) {
                 // Mapping cabang dinamis (sesuaikan dengan nama cabang di database Anda)
-                if (t.cabang === "Pusat")
+                if (t.cabang === "Cabang Solo")
                     revenueMap[dayName].cabangA += t.total_pembayaran;
-                else revenueMap[dayName].cabangB += t.total_pembayaran;
+                else if (t.cabang === "Cabang Jogja")
+                    revenueMap[dayName].cabangB += t.total_pembayaran;
             }
         });
         const revenueData = Object.values(revenueMap);
+
+        const selisihKas = reportsToday.reduce((sum, r) => sum + Math.abs(r.selisih), 0);
 
         // KIRIM RESPONS KE FRONTEND
         res.json({
@@ -134,7 +163,7 @@ export const getOwnerDashboard = async (req, res) => {
                 persentasePenjualan,
                 totalTransaksi,
                 persentaseTransaksi,
-                selisihKas: 0, // Default 0
+                selisihKas,
                 produkHampirHabis,
             },
             cabang,
