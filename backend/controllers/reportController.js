@@ -133,6 +133,22 @@ export const createDailyReport = async (req, res) => {
         const cabang = req.user.cabang;
         const todayStr = new Date().toISOString().slice(0, 10);
 
+        // Cek apakah tutup buku hari ini sudah pernah dilakukan di cabang ini
+        const dateObj = new Date();
+        const startOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0);
+        const endOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 23, 59, 59, 999);
+
+        const existingReport = await DailyReport.findOne({
+            cabang,
+            tanggal_laporan: { $gte: startOfDay, $lte: endOfDay },
+        });
+
+        if (existingReport) {
+            return res.status(400).json({
+                message: "Tutup buku harian untuk hari ini sudah dilakukan di cabang ini."
+            });
+        }
+
         // 1. Ambil semua shift record hari ini di cabang ini
         const todayShifts = await ShiftRecord.find({ cabang, tanggal: todayStr, status: "Selesai" });
 

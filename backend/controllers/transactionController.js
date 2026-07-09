@@ -1,6 +1,7 @@
 import Transaction from "../models/Transaction.js";
 import Product from "../models/Product.js";
 import StockTransferLog from "../models/StockTransferLog.js";
+import ShiftRecord from "../models/ShiftRecord.js";
 
 const generateUniqueInvoiceCode = async () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -30,6 +31,7 @@ export const createTransaction = async (req, res) => {
             is_hold,
             order_id,
             snap_token, // KUNCI UTAMA: Menangkap snap_token dari request React
+            customer_name,
         } = req.body;
 
         const branchName = (cabang && cabang !== "Pusat") ? cabang : "Cabang Jogja";
@@ -114,6 +116,17 @@ export const createTransaction = async (req, res) => {
             existingTrx.total_pembayaran = total_pembayaran;
             existingTrx.detail_transaksi = detail_transaksi;
             existingTrx.is_hold = is_hold !== undefined ? is_hold : false;
+            if (customer_name) {
+                existingTrx.customer_name = customer_name;
+            }
+
+            // Cari shift aktif di cabang ini jika transaksi selesai (bukan hold)
+            if (is_hold === false || is_hold === undefined) {
+                const activeShift = await ShiftRecord.findOne({ cabang: branchName, status: "Aktif" });
+                if (activeShift) {
+                    existingTrx.shift = activeShift.shift;
+                }
+            }
 
             if (snap_token) {
                 existingTrx.snap_token = snap_token;
@@ -159,6 +172,15 @@ export const createTransaction = async (req, res) => {
 
         const invoiceCode = await generateUniqueInvoiceCode();
 
+        // Cari shift aktif di cabang ini jika transaksi selesai (bukan hold)
+        let shiftName = "";
+        if (is_hold === false || is_hold === undefined) {
+            const activeShift = await ShiftRecord.findOne({ cabang: branchName, status: "Aktif" });
+            if (activeShift) {
+                shiftName = activeShift.shift;
+            }
+        }
+
         const transaction = await Transaction.create({
             order_id: order_id,
             user_id,
@@ -168,7 +190,9 @@ export const createTransaction = async (req, res) => {
             detail_transaksi,
             is_hold: is_hold !== undefined ? is_hold : false,
             snap_token: snap_token || "", // Simpan token ke database
+            customer_name: customer_name || "",
             invoice: invoiceCode,
+            shift: shiftName,
         });
 
         res.status(201).json({
@@ -208,6 +232,7 @@ export const getTransactions = async (req, res) => {
             status: "Success",
             date: trx.createdAt,
             details: trx.detail_transaksi,
+            shift: trx.shift || "",
         }));
 
         res.status(200).json(formatted);

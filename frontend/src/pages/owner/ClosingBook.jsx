@@ -43,6 +43,15 @@ const fetchReport = async () => {
 
     const report = res.data;
 
+    // Check if daily report already exists for today in this branch
+    const reportsRes = await api.get("/reports");
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    const userBranch = userInfo?.cabang || "Pusat";
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const hasClosedToday = reportsRes.data?.some(
+      (rep) => rep.cabang === userBranch && new Date(rep.tanggal_laporan).toISOString().slice(0, 10) === todayStr
+    );
+
     setData({
       totalTransaksi: report.totalTransactions || 0,
       totalPendapatan: report.totalRevenue || 0,
@@ -67,6 +76,8 @@ const fetchReport = async () => {
         detail: "Belum dilakukan tutup buku",
       },
     });
+
+    setIsClosed(hasClosedToday);
   } catch (err) {
     console.log(err);
   }
@@ -128,20 +139,13 @@ const handleClosingBook = async () => {
     const userInfo = JSON.parse(localStorage.getItem("userInfo"));
 
     await api.post("/reports/tutup-buku", {
-  diperiksa_oleh: userInfo._id,
-  cabang: userInfo.cabang,
-  total_kas_fisik: data.totalPendapatan,
-  tanggal_laporan: new Date(),
-});
-
-await fetchReport();
-
-setIsClosed(true);
+      diperiksa_oleh: userInfo._id,
+      cabang: userInfo.cabang,
+      total_kas_fisik: data.totalPendapatan,
+      tanggal_laporan: new Date(),
+    });
 
     await fetchReport();
-
-    setIsClosed(true);
-
     alert("Tutup buku berhasil");
   } catch (err) {
     console.log(err);

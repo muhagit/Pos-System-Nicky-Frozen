@@ -5,6 +5,7 @@ const productSchema = new mongoose.Schema(
         nama_produk: {
             type: String,
             required: true,
+            unique: true,
         },
         kategori: {
             type: String,

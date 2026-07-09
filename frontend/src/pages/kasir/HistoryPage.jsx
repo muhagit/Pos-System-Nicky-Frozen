@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 
 const HistoryPage = () => {
     const navigate = useNavigate();
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedTrx, setSelectedTrx] = useState(null);
@@ -19,23 +20,23 @@ const HistoryPage = () => {
     const [filterCashier, setFilterCashier] = useState("");
     const [filterPayment, setFilterPayment] = useState("");
     const [filterCategory, setFilterCategory] = useState("");
+    const [filterShift, setFilterShift] = useState("");
+    const [sortByDate, setSortByDate] = useState("newest"); // "newest" or "oldest"
+    const [dbCashiers, setDbCashiers] = useState([]);
+    const [dbCategories, setDbCategories] = useState([]);
     const itemsPerPage = 8;
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, filterDate, filterCashier, filterPayment, filterCategory]);
+    }, [searchQuery, filterDate, filterCashier, filterPayment, filterCategory, filterShift, sortByDate]);
 
-    const uniqueCashiers = [...new Set(transactions.map(t => t.customer).filter(Boolean))];
+    const filteredCashiers = dbCashiers.filter((user) => {
+        if (user.role !== "Kasir") return false;
+        if (userInfo?.role === "Owner") return true;
+        return user.cabang === userInfo?.cabang;
+    });
+
     const uniquePayments = [...new Set(transactions.map(t => t.payment).filter(Boolean))];
-    const uniqueCategories = [
-        ...new Set(
-            transactions
-                .flatMap((t) => t.details || [])
-                .map((item) => item.produk_id?.kategori)
-                .filter(Boolean)
-        ),
-    ];
-
     const filteredTransactions = transactions.filter((trx) => {
         const matchSearch = trx.invoice.toLowerCase().includes(searchQuery.toLowerCase());
         
@@ -50,12 +51,30 @@ const HistoryPage = () => {
         const matchCategory = filterCategory
             ? (trx.details || []).some(item => item.produk_id?.kategori === filterCategory)
             : true;
+        const matchShift = filterShift ? trx.shift === filterShift : true;
 
-        return matchSearch && matchDate && matchCashier && matchPayment && matchCategory;
+        return matchSearch && matchDate && matchCashier && matchPayment && matchCategory && matchShift;
+    });
+
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        if (sortByDate === "newest") {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return dateB - dateA;
+        } else if (sortByDate === "oldest") {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return dateA - dateB;
+        } else if (sortByDate === "total-desc") {
+            return b.total - a.total;
+        } else if (sortByDate === "total-asc") {
+            return a.total - b.total;
+        }
+        return 0;
     });
 
     const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-    const paginatedTransactions = filteredTransactions.slice(
+    const paginatedTransactions = sortedTransactions.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
@@ -66,25 +85,35 @@ const HistoryPage = () => {
         setFilterCashier("");
         setFilterPayment("");
         setFilterCategory("");
+        setFilterShift("");
+        setSortByDate("newest");
     };
 
     useEffect(() => {
-        const fetchTransactions = async () => {
+        const fetchFiltersAndTransactions = async () => {
             try {
                 const userInfo = JSON.parse(localStorage.getItem("userInfo"));
                 const config = {
                     headers: { Authorization: `Bearer ${userInfo?.token}` },
                 };
-                const res = await API.get("/transactions", config);
-                setTransactions(res.data);
+                
+                const [trxRes, usersRes, catsRes] = await Promise.all([
+                    API.get("/transactions", config),
+                    API.get("/users", config),
+                    API.get("/categories", config)
+                ]);
+
+                setTransactions(trxRes.data);
+                setDbCashiers(usersRes.data);
+                setDbCategories(catsRes.data);
             } catch (error) {
-                console.log("Gagal mengambil data transaksi:", error);
+                console.log("Gagal mengambil data history/filter:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchTransactions();
+        fetchFiltersAndTransactions();
     }, []);
 
     return (
@@ -134,9 +163,9 @@ const HistoryPage = () => {
             </div>
 
             {/* FILTER BAR */}
-            <div className="flex flex-wrap items-center gap-4 mt-6 flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-2 mt-6 flex-shrink-0 w-full">
                 {/* Date Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
                     <span className="text-xs text-gray-400 font-semibold uppercase">Tanggal</span>
                     <input
                         type="date"
@@ -155,7 +184,7 @@ const HistoryPage = () => {
                 </div>
 
                 {/* Cashier Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
                     <span className="text-xs text-gray-400 font-semibold uppercase">Kasir</span>
                     <select
                         value={filterCashier}
@@ -163,14 +192,14 @@ const HistoryPage = () => {
                         className="outline-none border-none text-sm text-gray-700 font-medium bg-transparent cursor-pointer"
                     >
                         <option value="">Semua Kasir</option>
-                        {uniqueCashiers.map((cashier) => (
-                            <option key={cashier} value={cashier}>{cashier}</option>
+                        {filteredCashiers.map((u) => (
+                            <option key={u._id} value={u.nama_lengkap}>{u.nama_lengkap}</option>
                         ))}
                     </select>
                 </div>
 
                 {/* Payment Method Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
                     <span className="text-xs text-gray-400 font-semibold uppercase">Metode</span>
                     <select
                         value={filterPayment}
@@ -185,7 +214,7 @@ const HistoryPage = () => {
                 </div>
 
                 {/* Category Filter */}
-                <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
                     <span className="text-xs text-gray-400 font-semibold uppercase">Kategori</span>
                     <select
                         value={filterCategory}
@@ -193,17 +222,46 @@ const HistoryPage = () => {
                         className="outline-none border-none text-sm text-gray-700 font-medium bg-transparent cursor-pointer"
                     >
                         <option value="">Semua Kategori</option>
-                        {uniqueCategories.map((category) => (
-                            <option key={category} value={category}>{category}</option>
+                        {dbCategories.map((cat) => (
+                            <option key={cat._id} value={cat.nama_kategori}>{cat.nama_kategori}</option>
                         ))}
                     </select>
                 </div>
 
+                {/* Shift Filter */}
+                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
+                    <span className="text-xs text-gray-400 font-semibold uppercase">Shift</span>
+                    <select
+                        value={filterShift}
+                        onChange={(e) => setFilterShift(e.target.value)}
+                        className="outline-none border-none text-sm text-gray-700 font-medium bg-transparent cursor-pointer"
+                    >
+                        <option value="">Semua Shift</option>
+                        <option value="Shift 1">Shift 1</option>
+                        <option value="Shift 2">Shift 2</option>
+                    </select>
+                </div>
+
+                {/* Sort Order Selector */}
+                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
+                    <span className="text-xs text-gray-400 font-semibold uppercase">Urutan</span>
+                    <select
+                        value={sortByDate}
+                        onChange={(e) => setSortByDate(e.target.value)}
+                        className="outline-none border-none text-sm text-gray-700 font-medium bg-transparent cursor-pointer"
+                    >
+                        <option value="newest">Terbaru</option>
+                        <option value="oldest">Terlama</option>
+                        <option value="total-desc">Nominal Tertinggi</option>
+                        <option value="total-asc">Nominal Terendah</option>
+                    </select>
+                </div>
+
                 {/* Reset Filters Button */}
-                {(filterDate || filterCashier || filterPayment || filterCategory || searchQuery) && (
+                {(filterDate || filterCashier || filterPayment || filterCategory || filterShift || sortByDate !== "newest" || searchQuery) && (
                     <button
                         onClick={resetAllFilters}
-                        className="text-sm font-semibold text-red-500 hover:text-red-600 transition bg-transparent border-none cursor-pointer ml-auto"
+                        className="text-sm font-semibold text-red-500 hover:text-red-600 transition bg-transparent border-none cursor-pointer flex-shrink-0"
                     >
                         Reset Filter
                     </button>
@@ -223,6 +281,7 @@ const HistoryPage = () => {
                                     <tr className="text-left border-b border-border">
                                         <th className="pb-4">Invoice</th>
                                         <th className="pb-4">Kasir</th>
+                                        <th className="pb-4">Shift</th>
                                         <th className="pb-4">Payment</th>
                                         <th className="pb-4">Date</th>
                                         <th className="pb-4">Total</th>
@@ -238,6 +297,11 @@ const HistoryPage = () => {
                                         >
                                             <td className="py-4 font-semibold">{trx.invoice}</td>
                                             <td>{trx.customer}</td>
+                                            <td>
+                                                <span className={trx.shift ? "px-2.5 py-1 bg-cyan-50 text-cyan-600 rounded-xl text-xs font-bold" : "text-gray-400 text-xs font-medium"}>
+                                                    {trx.shift || "-"}
+                                                </span>
+                                            </td>
                                             <td>{trx.payment}</td>
                                             <td>{new Date(trx.date).toLocaleString("id-ID")}</td>
                                             <td className="font-semibold text-primary">
@@ -331,6 +395,10 @@ const HistoryPage = () => {
                             <div className="flex justify-between">
                                 <span>Kasir</span>
                                 <span className="font-semibold text-gray-700">{selectedTrx.customer}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Shift</span>
+                                <span className="font-semibold text-gray-700">{selectedTrx.shift || "-"}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Metode Pembayaran</span>

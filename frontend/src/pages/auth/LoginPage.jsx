@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom"; // Sangat disarankan pakai ini untuk navigasi React
 import API from "../../services/api";
 import Swal from "sweetalert2"; // Gunakan huruf kapital 'S' sesuai konvensi
+import loginBg from "../../assets/login-bg.jpg";
 
 const LoginPage = () => {
-    const [role, setRole] = useState("Owner");
     const [rememberMe, setRememberMe] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
@@ -28,7 +28,6 @@ const LoginPage = () => {
             const response = await API.post("/auth/login", {
                 username: formData.username,
                 password: formData.password,
-                role: role,
             });
 
             console.log(response.data);
@@ -66,17 +65,21 @@ const LoginPage = () => {
         }
     };
 
-    const roles = ["Owner", "Admin", "Kasir"];
-
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-100 font-[var(--font-poppins)]">
-            <div className="flex w-full max-w-4xl mx-4 rounded-2xl shadow-2xl overflow-hidden bg-white">
+        <div 
+            className="min-h-screen flex items-center justify-center font-[var(--font-poppins)] bg-cover bg-center bg-no-repeat relative"
+            style={{ backgroundImage: `url(${loginBg})` }}
+        >
+            {/* Soft dark overlay with blur to integrate background and elevate contrast */}
+            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px]"></div>
+
+            <div className="flex w-full max-w-4xl mx-4 rounded-3xl shadow-2xl overflow-hidden bg-white/70 backdrop-blur-xl border border-white/20 relative z-10">
                 {/* Left Panel */}
                 <div
                     className="hidden md:flex flex-col justify-between w-2/5 p-10 relative overflow-hidden"
                     style={{
                         background:
-                            "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 40%, #1e40af 70%, #1a3a7a 100%)",
+                            "linear-gradient(145deg, rgba(30, 58, 138, 0.85) 0%, rgba(29, 78, 216, 0.85) 40%, rgba(30, 64, 175, 0.85) 70%, rgba(26, 58, 122, 0.85) 100%)",
                     }}
                 >
                     {/* Decorative snowflakes */}
@@ -153,38 +156,19 @@ const LoginPage = () => {
                 </div>
 
                 {/* Right Panel */}
-                <div className="flex-1 flex flex-col justify-center px-10 py-12">
-                    <h2 className="text-3xl font-bold text-[var(--color-text)] mb-1">
-                        Welcome Back
-                    </h2>
-                    <p className="text-[var(--color-text-secondary)] text-sm mb-6">
-                        Sign in to your account to continue
-                    </p>
+                <div className="flex-1 flex flex-col justify-center px-10 py-12 bg-white/30 relative">
+                    {/* Radial overlay inside the white glass card for premium micro-details */}
+                    <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px] opacity-30 pointer-events-none"></div>
 
-                    {/* Role Selection */}
-                    <div className="mb-6">
-                        <p className="text-sm font-medium text-[var(--color-text)] mb-2">
-                            Login sebagai
+                    <div className="relative z-10">
+                        <h2 className="text-3xl font-bold text-[var(--color-text)] mb-1">
+                            Welcome Back
+                        </h2>
+                        <p className="text-[var(--color-text-secondary)] text-sm mb-6">
+                            Sign in to your account to continue
                         </p>
-                        <div className="flex gap-2">
-                            {roles.map((r) => (
-                                <button
-                                    key={r}
-                                    type="button"
-                                    onClick={() => setRole(r)}
-                                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium border transition-all duration-200 cursor-pointer ${
-                                        role === r
-                                            ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-md"
-                                            : "bg-white border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-                                    }`}
-                                >
-                                    {r}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
 
-                    <form
+                        <form
                         onSubmit={handleLogin}
                         className="flex flex-col gap-4"
                     >
@@ -248,7 +232,8 @@ const LoginPage = () => {
                         >
                             Sign In
                         </button>
-                    </form>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

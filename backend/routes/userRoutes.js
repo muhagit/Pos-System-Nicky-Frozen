@@ -10,7 +10,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 // 1. READ: Mengambil semua user
-router.get("/", protect, authorize("Owner", "Admin"), getUsers);
+router.get("/", protect, authorize("Owner", "Admin", "Kasir"), getUsers);
 
 // 2. CREATE: Menambah user baru
 router.post("/", protect, authorize("Owner", "Admin"), registerUser);

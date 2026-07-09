@@ -29,6 +29,7 @@ const AdminProducts = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentId, setCurrentId] = useState(null);
     const [imageFile, setImageFile] = useState(null); // State khusus untuk file gambar
+    const [categories, setCategories] = useState([]);
     const [formData, setFormData] = useState({
         nama_produk: "",
         kategori: "Nugget",
@@ -60,6 +61,22 @@ const AdminProducts = () => {
             setIsLoading(false);
         }
     }, [searchQuery, selectedCategory]);
+
+    const fetchCategories = useCallback(async () => {
+        try {
+            const config = {
+                headers: { Authorization: `Bearer ${userInfo?.token}` },
+            };
+            const { data } = await axios.get("http://localhost:5000/api/categories", config);
+            setCategories(data);
+        } catch (error) {
+            console.error("Gagal mengambil kategori:", error);
+        }
+    }, [userInfo?.token]);
+
+    useEffect(() => {
+        fetchCategories();
+    }, [fetchCategories]);
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
@@ -188,7 +205,7 @@ const AdminProducts = () => {
             setCurrentId(null);
             setFormData({
                 nama_produk: "",
-                kategori: "Nugget",
+                kategori: categories[0]?.nama_kategori || "",
                 harga: "",
                 stok_saat_ini: "",
                 batas_stok_minimum: "",
@@ -248,12 +265,11 @@ const AdminProducts = () => {
                     className="py-2 px-4 rounded-xl border border-gray-200 focus:outline-none focus:border-primary text-sm min-w-[200px]"
                 >
                     <option value="All">All Categories</option>
-                    <option value="Nugget">Nugget</option>
-                    <option value="Fish">Fish</option>
-                    <option value="Fries">Fries</option>
-                    <option value="Meatball">Meatball</option>
-                    <option value="Seafood">Seafood</option>
-                    <option value="Vegetables">Vegetables</option>
+                    {categories.map((cat) => (
+                        <option key={cat._id} value={cat.nama_kategori}>
+                            {cat.nama_kategori}
+                        </option>
+                    ))}
                 </select>
             </div>
 
@@ -315,7 +331,7 @@ const AdminProducts = () => {
                                         product.stok_saat_ini <= 0;
                                     const isLow =
                                         product.stok_saat_ini <=
-                                            product.batas_stok_minimum &&
+                                        product.batas_stok_minimum &&
                                         product.stok_saat_ini > 0;
 
                                     return (
@@ -368,19 +384,18 @@ const AdminProducts = () => {
                                             </td>
                                             <td className="py-3.5 px-4">
                                                 <span
-                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap inline-block ${
-                                                        isCritical
+                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap inline-block ${isCritical
                                                             ? "bg-red-100 text-red-600"
                                                             : isLow
-                                                              ? "bg-amber-100 text-amber-600"
-                                                              : "bg-emerald-100 text-emerald-600"
-                                                    }`}
+                                                                ? "bg-amber-100 text-amber-600"
+                                                                : "bg-emerald-100 text-emerald-600"
+                                                        }`}
                                                 >
                                                     {isCritical
                                                         ? "Critical"
                                                         : isLow
-                                                          ? "Low Stock"
-                                                          : "In Stock"}
+                                                            ? "Low Stock"
+                                                            : "In Stock"}
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4">
@@ -501,16 +516,11 @@ const AdminProducts = () => {
                                         }
                                         className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:border-primary"
                                     >
-                                        <option value="Nugget">Nugget</option>
-                                        <option value="Fish">Fish</option>
-                                        <option value="Fries">Fries</option>
-                                        <option value="Meatball">
-                                            Meatball
-                                        </option>
-                                        <option value="Seafood">Seafood</option>
-                                        <option value="Vegetables">
-                                            Vegetables
-                                        </option>
+                                        {categories.map((cat) => (
+                                            <option key={cat._id} value={cat.nama_kategori}>
+                                                {cat.nama_kategori}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>

@@ -10,6 +10,7 @@ import {
     FiFileText,
     FiLogOut,
     FiSettings,
+    FiTag,
 } from "react-icons/fi";
 
 const AdminLayout = () => {
@@ -54,11 +55,10 @@ const AdminLayout = () => {
                     <div className="flex flex-col gap-4 mt-10 overflow-y-auto max-h-[55vh] pr-2 scrollbar-hide">
                         <button
                             onClick={() => navigate("/admin")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin"
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
                         >
                             <FiGrid size={20} />
                             Dashboard
@@ -66,23 +66,32 @@ const AdminLayout = () => {
 
                         <button
                             onClick={() => navigate("/admin/products")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/products"
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/products"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
                         >
                             <FiPackage size={20} />
                             Products
                         </button>
 
                         <button
-                            onClick={() => navigate("/admin/stock")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/stock"
+                            onClick={() => navigate("/admin/categories")}
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/categories"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
+                        >
+                            <FiTag size={20} />
+                            Categories
+                        </button>
+
+                        <button
+                            onClick={() => navigate("/admin/stock")}
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/stock"
+                                    ? "bg-primary"
+                                    : "hover:bg-sidebar-light"
+                                }`}
                         >
                             <FiActivity size={20} />
                             Stock Management
@@ -90,11 +99,10 @@ const AdminLayout = () => {
 
                         <button
                             onClick={() => navigate("/admin/expired")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/expired"
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/expired"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
                         >
                             <FiAlertTriangle size={20} />
                             Expired Monitoring
@@ -102,11 +110,10 @@ const AdminLayout = () => {
 
                         <button
                             onClick={() => navigate("/admin/branch-sync")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/branch-sync"
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/branch-sync"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
                         >
                             <FiRefreshCw size={20} />
                             Branch Sync
@@ -114,11 +121,10 @@ const AdminLayout = () => {
 
                         <button
                             onClick={() => navigate("/admin/reports")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/reports"
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/reports"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
                         >
                             <FiFileText size={20} />
                             Reports
@@ -126,11 +132,10 @@ const AdminLayout = () => {
 
                         <button
                             onClick={() => navigate("/admin/settings")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                                location.pathname === "/admin/settings"
+                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/settings"
                                     ? "bg-primary"
                                     : "hover:bg-sidebar-light"
-                            }`}
+                                }`}
                         >
                             <FiSettings size={20} />
                             Settings

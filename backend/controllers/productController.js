@@ -22,6 +22,17 @@ export const createProduct = async (req, res) => {
                 .json({ message: "Semua field wajib harus diisi" });
         }
 
+        // Cek apakah produk dengan nama yang sama sudah ada (case-insensitive & trimmed)
+        const existingProduct = await Product.findOne({
+            nama_produk: { $regex: new RegExp(`^${nama_produk.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}$`, "i") }
+        });
+
+        if (existingProduct) {
+            return res.status(400).json({
+                message: "Produk dengan nama tersebut sudah ada."
+            });
+        }
+
         // 2. Tangkap path gambar dari middleware multer (jika ada file yang diunggah)
         const gambar = req.file ? `/uploads/${req.file.filename}` : "";
 
@@ -151,6 +162,19 @@ export const updateProduct = async (req, res) => {
         const product = await Product.findById(req.params.id);
 
         if (product) {
+            // Cek apakah nama produk yang baru sudah digunakan oleh produk lain
+            if (nama_produk) {
+                const existingProduct = await Product.findOne({
+                    _id: { $ne: req.params.id },
+                    nama_produk: { $regex: new RegExp(`^${nama_produk.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}$`, "i") }
+                });
+                if (existingProduct) {
+                    return res.status(400).json({
+                        message: "Produk dengan nama tersebut sudah ada."
+                    });
+                }
+            }
+
             // Perbarui teks datanya
             product.nama_produk = nama_produk || product.nama_produk;
             product.kategori = kategori || product.kategori;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import API from "../../services/api";
 import Swal from "sweetalert2";
 
@@ -8,6 +8,7 @@ import transferImg from "../../assets/payment/transfer.png";
 import cardImg from "../../assets/payment/card.png";
 
 import { useNavigate } from "react-router-dom";
+import { FiClock, FiArrowUp, FiArrowDown } from "react-icons/fi";
 
 const KasirPage = () => {
     const navigate = useNavigate();
@@ -34,7 +35,9 @@ const KasirPage = () => {
     // Search, Filter & Sort States
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
-    const [sortBy, setSortBy] = useState("default");
+    const [sortBy, setSortBy] = useState("name");
+    const [sortOrder, setSortOrder] = useState("asc");
+    const [dbCategories, setDbCategories] = useState([]);
 
     // Tour/Onboarding States
     const [isTourActive, setIsTourActive] = useState(false);
@@ -195,9 +198,6 @@ const KasirPage = () => {
         };
     };
 
-    // Dynamic categories extraction
-    const categories = ["All", ...new Set(products.map((p) => p.kategori).filter(Boolean))];
-
     // Search, Filter & Sort Logic
     const processedProducts = products
         .filter((product) => {
@@ -206,16 +206,17 @@ const KasirPage = () => {
             return matchesSearch && matchesCategory;
         })
         .sort((a, b) => {
-            if (sortBy === "alphabetical-asc") {
-                return a.nama_produk.localeCompare(b.nama_produk);
+            let comparison = 0;
+            if (sortBy === "name") {
+                comparison = a.nama_produk.localeCompare(b.nama_produk);
+            } else if (sortBy === "price") {
+                comparison = a.harga - b.harga;
+            } else if (sortBy === "stock") {
+                comparison = a.stok_saat_ini - b.stok_saat_ini;
+            } else if (sortBy === "date") {
+                comparison = new Date(a.updatedAt || a.createdAt) - new Date(b.updatedAt || b.createdAt);
             }
-            if (sortBy === "alphabetical-desc") {
-                return b.nama_produk.localeCompare(a.nama_produk);
-            }
-            if (sortBy === "newest") {
-                return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
-            }
-            return 0;
+            return sortOrder === "asc" ? comparison : -comparison;
         });
 
     const checkActiveShift = async () => {
@@ -230,9 +231,20 @@ const KasirPage = () => {
         }
     };
 
+    const fetchCategories = useCallback(async () => {
+        try {
+            const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
+            const { data } = await API.get("/categories", config);
+            setDbCategories(data);
+        } catch (error) {
+            console.error("Gagal mengambil kategori:", error);
+        }
+    }, [userInfo?.token]);
+
     useEffect(() => {
         checkActiveShift();
-    }, []);
+        fetchCategories();
+    }, [fetchCategories]);
 
     const handleStartShift = async () => {
         if (shiftName === "Shift 1") {
@@ -469,6 +481,102 @@ const KasirPage = () => {
     );
     const tax = subtotal * 0.1; // Pajak 10%
     const total = subtotal + tax;
+
+    // HANDLE HOLD MANUAL (TUNDA TRANSAKSI)
+    const handleHoldManual = async () => {
+        if (!activeShift) {
+            return Swal.fire(
+                "Peringatan",
+                "Harap mulai shift kerja terlebih dahulu untuk melakukan transaksi!",
+                "warning"
+            );
+        }
+        if (cartItems.length === 0) {
+            return Swal.fire(
+                "Gagal",
+                "Keranjang belanja masih kosong!",
+                "warning",
+            );
+        }
+
+        const { value: customerName } = await Swal.fire({
+            title: "Simpan Transaksi Tunda",
+            input: "text",
+            inputLabel: "Nama Pelanggan / Catatan Pesanan",
+            inputPlaceholder: "Masukkan nama pelanggan...",
+            showCancelButton: true,
+            confirmButtonText: "Simpan",
+            cancelButtonText: "Batal",
+            confirmButtonColor: "#f59e0b", // amber 500
+            cancelButtonColor: "#dc2626",
+            inputValidator: (value) => {
+                if (!value) {
+                    return "Nama pelanggan harus diisi!";
+                }
+            },
+            customClass: {
+                popup: "rounded-3xl p-6",
+                confirmButton: "rounded-2xl px-6 py-3 font-bold text-white text-sm focus:outline-none mr-2",
+                cancelButton: "rounded-2xl px-6 py-3 font-bold text-white text-sm focus:outline-none",
+                input: "rounded-xl border-gray-200 outline-none text-sm font-medium focus:border-amber-500"
+            }
+        });
+
+        if (!customerName) return;
+
+        setIsSubmitting(true);
+
+        const config = {
+            headers: { Authorization: `Bearer ${userInfo?.token}` },
+        };
+
+        const uniqueId = holdOrderId || `NICKY-${Date.now()}`;
+        const holdPayload = {
+            user_id: userInfo?._id,
+            cabang: userInfo?.cabang || "Pusat",
+            metode_pembayaran: paymentMethod || "Cash",
+            total_pembayaran: total,
+            is_hold: true,
+            detail_transaksi: cartItems.map((item) => ({
+                produk_id: item._id,
+                kuantitas: item.qty,
+                harga_satuan: item.harga,
+                subtotal: item.harga * item.qty,
+            })),
+            subtotal_keranjang: subtotal,
+            pajak: tax,
+            kasir: userInfo?.nama_lengkap || "Kasir",
+            order_id: uniqueId,
+            customer_name: customerName,
+        };
+
+        try {
+            await API.post("/transactions", holdPayload, config);
+
+            Swal.fire({
+                icon: "success",
+                title: "Berhasil Disimpan",
+                text: `Transaksi atas nama "${customerName}" berhasil ditunda.`,
+                timer: 2000,
+                showConfirmButton: false,
+            });
+
+            setCartItems([]);
+            setPaymentMethod("");
+            setHoldOrderId(null);
+            setHoldSnapToken(null);
+            setRevisionCount(0);
+            fetchProducts();
+        } catch (error) {
+            Swal.fire(
+                "Gagal",
+                error.response?.data?.message || "Sistem gagal menyimpan transaksi tunda.",
+                "error",
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     // HANDLE CHECKOUT (PROSES KE BACKEND)
     // HANDLE CHECKOUT (PROSES KE BACKEND)
@@ -750,6 +858,34 @@ const KasirPage = () => {
                 }
 
                 const saveToHoldAutomatically = async () => {
+                    const { value: customerName } = await Swal.fire({
+                        title: "Simpan Transaksi Tunda",
+                        input: "text",
+                        inputLabel: "Nama Pelanggan / Catatan Pesanan",
+                        inputPlaceholder: "Masukkan nama pelanggan...",
+                        showCancelButton: true,
+                        confirmButtonText: "Simpan",
+                        cancelButtonText: "Jangan Simpan",
+                        confirmButtonColor: "#f59e0b",
+                        cancelButtonColor: "#dc2626",
+                        inputValidator: (value) => {
+                            if (!value) {
+                                return "Nama pelanggan harus diisi!";
+                            }
+                        },
+                        customClass: {
+                            popup: "rounded-3xl p-6",
+                            confirmButton: "rounded-2xl px-6 py-3 font-bold text-white text-sm focus:outline-none mr-2",
+                            cancelButton: "rounded-2xl px-6 py-3 font-bold text-white text-sm focus:outline-none",
+                            input: "rounded-xl border-gray-200 outline-none text-sm font-medium focus:border-amber-500"
+                        }
+                    });
+
+                    if (!customerName) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+
                     const holdPayload = {
                         ...payload,
                         order_id: uniqueOrderId,
@@ -757,6 +893,7 @@ const KasirPage = () => {
                         status_pembayaran: "Pending",
                         metode_pembayaran: paymentMethod,
                         snap_token: snapTokenToUse,
+                        customer_name: customerName,
                     };
 
                     try {
@@ -883,7 +1020,7 @@ const KasirPage = () => {
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                         {/* SEARCH & SORT */}
                         <div id="tour-search-filter" className="bg-white rounded-3xl p-5 shadow-sm">
-                            <div className="flex gap-4">
+                            <div className="flex flex-col md:flex-row gap-4">
                                 <input
                                     type="text"
                                     placeholder="Search products..."
@@ -891,32 +1028,42 @@ const KasirPage = () => {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="flex-1 border border-border rounded-2xl p-4 outline-none focus:border-primary text-sm font-medium"
                                 />
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="border border-border rounded-2xl px-4 py-2 outline-none focus:border-primary text-sm font-semibold bg-gray-50 cursor-pointer"
-                                >
-                                    <option value="default">Default Sort</option>
-                                    <option value="alphabetical-asc">Name: A to Z</option>
-                                    <option value="alphabetical-desc">Name: Z to A</option>
-                                    <option value="newest">Recently Updated</option>
-                                </select>
-                            </div>
-                            {/* CATEGORY */}
-                            <div className="flex gap-4 mt-5 overflow-x-auto pb-2 custom-scrollbar">
-                                {categories.map((cat) => (
-                                    <button
-                                        key={cat}
-                                        onClick={() => setSelectedCategory(cat)}
-                                        className={`px-6 py-3 rounded-2xl whitespace-nowrap font-bold text-sm border-none cursor-pointer transition-all duration-200 ${
-                                            selectedCategory === cat
-                                                ? "bg-primary text-white shadow-md shadow-cyan-500/10"
-                                                : "bg-gray-100 text-gray-500 hover:bg-gray-250"
-                                        }`}
+                                <div className="flex gap-2">
+                                    <select
+                                        value={selectedCategory}
+                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                        className="border border-border rounded-2xl px-4 py-2 outline-none focus:border-primary text-sm font-semibold bg-gray-50 cursor-pointer min-w-[150px]"
                                     >
-                                        {cat}
+                                        <option value="All">All Categories</option>
+                                        {dbCategories.map((cat) => (
+                                            <option key={cat._id} value={cat.nama_kategori}>
+                                                {cat.nama_kategori}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="border border-border rounded-2xl px-4 py-2 outline-none focus:border-primary text-sm font-semibold bg-gray-50 cursor-pointer min-w-[150px]"
+                                    >
+                                        <option value="name">Product Name</option>
+                                        <option value="price">Price</option>
+                                        <option value="stock">Stock Quantity</option>
+                                        <option value="date">Recently Updated</option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+                                        className="border border-border rounded-2xl px-4 py-2 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition cursor-pointer text-gray-600 hover:text-primary outline-none"
+                                        title={sortOrder === "asc" ? "Sort Ascending" : "Sort Descending"}
+                                    >
+                                        {sortOrder === "asc" ? (
+                                            <FiArrowUp size={18} />
+                                        ) : (
+                                            <FiArrowDown size={18} />
+                                        )}
                                     </button>
-                                ))}
+                                </div>
                             </div>
                         </div>
 
@@ -1122,8 +1269,8 @@ const KasirPage = () => {
                             </div>
                         )}
 
-                        {/* CHECKOUT BUTTON */}
-                        <div className="mt-6">
+                        {/* CHECKOUT & HOLD BUTTONS */}
+                        <div className="mt-6 flex flex-col gap-3">
                             <button
                                 onClick={handlePayment}
                                 disabled={
@@ -1141,6 +1288,16 @@ const KasirPage = () => {
                                     "Proceed to Payment"
                                 )}
                             </button>
+
+                            {cartItems.length > 0 && (
+                                <button
+                                    onClick={handleHoldManual}
+                                    disabled={isSubmitting}
+                                    className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold transition flex justify-center items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer border-none"
+                                >
+                                    <FiClock /> Tunda Transaksi (Hold)
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -30,6 +30,13 @@ const Reports = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [detailData, setDetailData] = useState(null);
 
+  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const userBranch = userInfo?.cabang || "Pusat";
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const hasClosedToday = reports.some(
+    (rep) => rep.cabang === userBranch && new Date(rep.tanggal_laporan).toISOString().slice(0, 10) === todayStr
+  );
+
   // ======================
   // FORMAT RUPIAH
   // ======================
@@ -147,6 +154,10 @@ const Reports = () => {
   // CLOSE BOOK
   // ======================
   const closeBook = async () => {
+    if (hasClosedToday) {
+      alertError("Tutup buku harian untuk hari ini sudah dilakukan.");
+      return;
+    }
     try {
       const userInfo = JSON.parse(localStorage.getItem("userInfo"));
 
@@ -458,9 +469,14 @@ const Reports = () => {
 
           <button
             onClick={closeBook}
-            className="bg-primary text-sidebar px-4 py-2 rounded-xl font-semibold"
+            disabled={hasClosedToday}
+            className={`px-4 py-2 rounded-xl font-semibold transition-all ${
+              hasClosedToday
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-primary text-sidebar hover:bg-primary-dark"
+            }`}
           >
-            Close Daily Book
+            {hasClosedToday ? "Book Already Closed" : "Close Daily Book"}
           </button>
         </div>
 
