@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
-import axios from "axios"; // Tambahkan import axios
+import axios from "axios";
 import Swal from "sweetalert2";
 
-// Ubah onSuccess menjadi fetchUsers agar sesuai dengan props dari UserManagement.jsx
 const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
+    const [currentStep, setCurrentStep] = useState(1);
+    const [isVerifying, setIsVerifying] = useState(false);
+    
     // State untuk form values
     const [formData, setFormData] = useState({
         fullName: "",
         username: "",
+        email: "",
         password: "",
+        confirmPassword: "",
         role: "",
         branch: "",
         status: "Active",
@@ -35,6 +39,18 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
 
         if (showModal) {
             fetchBranches();
+            // Reset step and form when modal is opened
+            setCurrentStep(1);
+            setFormData({
+                fullName: "",
+                username: "",
+                email: "",
+                password: "",
+                confirmPassword: "",
+                role: "",
+                branch: "",
+                status: "Active",
+            });
         }
     }, [showModal]);
 
@@ -46,92 +62,136 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const validateForm = () => {
-        const requiredFields = [
-            "fullName",
-            "username",
-            "password",
-            "role",
-        ];
-        if (formData.role !== "Owner") {
-            requiredFields.push("branch");
-        }
-        const missingFields = requiredFields.filter(
-            (field) => !formData[field]?.trim(),
-        );
-
-        if (missingFields.length > 0) {
-            Swal.fire({
-                icon: "error",
-                title: "Incomplete Form",
-                text: "Please fill in all required fields: Full Name, Username, Password, Role, and Branch.",
-                confirmButtonColor: "#d33",
-                confirmButtonText: "OK",
+    // Validasi & navigasi Langkah 1 ke Langkah 2
+    const handleNextStep1 = async () => {
+        if (!formData.username.trim() || !formData.email.trim()) {
+            return Swal.fire({
+                icon: "warning",
+                title: "Form Belum Lengkap",
+                text: "Harap isi Username dan Email terlebih dahulu.",
+                confirmButtonColor: "#3085d6"
             });
-            return false;
         }
-        return true;
-    };
 
-    const handleSave = async () => {
-        if (!validateForm()) return;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+            return Swal.fire({
+                icon: "error",
+                title: "Format Email Salah",
+                text: "Harap masukkan format email yang valid.",
+                confirmButtonColor: "#d33"
+            });
+        }
 
         try {
-            // 1. Ambil token otorisasi dari localStorage
+            setIsVerifying(true);
             const userInfo = JSON.parse(localStorage.getItem("userInfo"));
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
 
-            // 2. Mapping data dari form (Inggris) ke format database backend (Indonesia)
+            const { data } = await axios.post(
+                "http://localhost:5000/api/users/verify-step1",
+                { username: formData.username.trim(), email: formData.email.trim() },
+                config
+            );
+
+            if (data.success) {
+                setCurrentStep(2);
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: "error",
+                title: "Verifikasi Gagal",
+                text: error.response?.data?.message || "Terjadi kesalahan saat memverifikasi data.",
+                confirmButtonColor: "#d33"
+            });
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    // Validasi & navigasi Langkah 2 ke Langkah 3
+    const handleNextStep2 = () => {
+        if (!formData.fullName.trim() || !formData.role) {
+            return Swal.fire({
+                icon: "warning",
+                title: "Form Belum Lengkap",
+                text: "Nama Lengkap dan Role wajib diisi.",
+                confirmButtonColor: "#3085d6"
+            });
+        }
+
+        if (formData.role !== "Owner" && !formData.branch) {
+            return Swal.fire({
+                icon: "warning",
+                title: "Form Belum Lengkap",
+                text: "Cabang wajib dipilih untuk Admin atau Kasir.",
+                confirmButtonColor: "#3085d6"
+            });
+        }
+
+        setCurrentStep(3);
+    };
+
+    // Proses penyimpanan final di Langkah 3
+    const handleSave = async () => {
+        if (!formData.password || !formData.confirmPassword) {
+            return Swal.fire({
+                icon: "warning",
+                title: "Form Belum Lengkap",
+                text: "Password dan Konfirmasi Password harus diisi.",
+                confirmButtonColor: "#3085d6"
+            });
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            return Swal.fire({
+                icon: "error",
+                title: "Konfirmasi Salah",
+                text: "Password dan Konfirmasi Password tidak cocok.",
+                confirmButtonColor: "#d33"
+            });
+        }
+
+        try {
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            const config = {
+                headers: { Authorization: `Bearer ${userInfo?.token}` },
+            };
+
             const payload = {
-                nama_lengkap: formData.fullName,
-                username: formData.username,
+                nama_lengkap: formData.fullName.trim(),
+                username: formData.username.trim(),
+                email: formData.email.trim(),
                 password: formData.password,
                 role: formData.role,
                 cabang: formData.role === "Owner" ? "Pusat" : formData.branch,
                 status: formData.status,
             };
 
-            // 3. Kirim data ke backend
             await axios.post(
                 "http://localhost:5000/api/users",
                 payload,
-                config,
+                config
             );
 
-            // 4. Tampilkan pesan sukses
             await Swal.fire({
                 icon: "success",
-                title: "User Added!",
-                text: "New user has been successfully created.",
+                title: "User Berhasil Dibuat!",
+                text: "Pengguna baru berhasil ditambahkan.",
                 confirmButtonColor: "#3085d6",
-                confirmButtonText: "OK",
                 timer: 2000,
                 timerProgressBar: true,
             });
 
-            // 5. Bersihkan form kembali ke awal
-            setFormData({
-                fullName: "",
-                username: "",
-                password: "",
-                role: "",
-                branch: "",
-                status: "Active",
-            });
-
-            // 6. Tutup modal dan refresh tabel data user
             setShowModal(false);
             if (fetchUsers) fetchUsers();
         } catch (error) {
             Swal.fire({
                 icon: "error",
-                title: "Failed",
-                // Tampilkan pesan error langsung dari backend (misal: "Username sudah digunakan")
-                text:
-                    error.response?.data?.message ||
-                    "An error occurred while saving the user.",
+                title: "Gagal",
+                text: error.response?.data?.message || "Gagal menyimpan pengguna baru.",
                 confirmButtonColor: "#d33",
             });
         }
@@ -144,10 +204,10 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-text">
-                            Add User
+                            Tambah Pengguna
                         </h2>
                         <p className="text-text-secondary text-sm mt-1">
-                            Create a new system user
+                            Buat akun baru sistem
                         </p>
                     </div>
                     <button
@@ -158,124 +218,224 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                     </button>
                 </div>
 
-                {/* FORM */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* FULL NAME - required */}
-                    <div>
-                        <label className="text-sm font-medium text-text">
-                            Full Name <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="fullName"
-                            value={formData.fullName}
-                            onChange={handleChange}
-                            placeholder="Enter full name"
-                            className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                        />
+                {/* PROGRESS STEP INDICATOR */}
+                <div className="flex items-center justify-between mb-8 px-4 select-none">
+                    <div className="flex flex-col items-center">
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            currentStep >= 1 ? "bg-primary text-sidebar" : "bg-border text-text-secondary"
+                        }`}>1</span>
+                        <span className="text-[10px] font-semibold text-text-secondary mt-1">Akun</span>
                     </div>
-
-                    {/* USERNAME - required */}
-                    <div>
-                        <label className="text-sm font-medium text-text">
-                            Username <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="username"
-                            value={formData.username}
-                            onChange={handleChange}
-                            placeholder="Enter username"
-                            className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                        />
+                    <div className={`flex-1 h-0.5 mx-2 transition-all duration-300 ${currentStep >= 2 ? "bg-primary" : "bg-border"}`} />
+                    <div className="flex flex-col items-center">
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            currentStep >= 2 ? "bg-primary text-sidebar" : "bg-border text-text-secondary"
+                        }`}>2</span>
+                        <span className="text-[10px] font-semibold text-text-secondary mt-1">Otoritas</span>
                     </div>
-
-                    {/* PASSWORD - required */}
-                    <div>
-                        <label className="text-sm font-medium text-text">
-                            Password <span className="text-danger">*</span>
-                        </label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="Enter password"
-                            className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                        />
-                    </div>
-
-                    {/* ROLE - required */}
-                    <div>
-                        <label className="text-sm font-medium text-text">
-                            Role <span className="text-danger">*</span>
-                        </label>
-                        <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                        >
-                            <option value="">Select Role</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Owner">Owner</option>
-                            <option value="Kasir">Kasir</option>
-                        </select>
-                    </div>
-
-                    {/* BRANCH - required */}
-                    {formData.role !== "Owner" && (
-                        <div>
-                            <label className="text-sm font-medium text-text">
-                                Branch <span className="text-danger">*</span>
-                            </label>
-                            <select
-                                name="branch"
-                                value={formData.branch}
-                                onChange={handleChange}
-                                className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                            >
-                                <option value="">Select Branch</option>
-                                {branches.map((b) => (
-                                    <option key={b._id} value={b.name}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* STATUS - optional, default Active */}
-                    <div>
-                        <label className="text-sm font-medium text-text">
-                            Status
-                        </label>
-                        <select
-                            name="status"
-                            value={formData.status}
-                            onChange={handleChange}
-                            className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                        >
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
+                    <div className={`flex-1 h-0.5 mx-2 transition-all duration-300 ${currentStep >= 3 ? "bg-primary" : "bg-border"}`} />
+                    <div className="flex flex-col items-center">
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            currentStep >= 3 ? "bg-primary text-sidebar" : "bg-border text-text-secondary"
+                        }`}>3</span>
+                        <span className="text-[10px] font-semibold text-text-secondary mt-1">Keamanan</span>
                     </div>
                 </div>
 
-                {/* FOOTER */}
-                <div className="flex items-center justify-end gap-4 mt-8">
-                    <button
-                        onClick={() => setShowModal(false)}
-                        className="px-5 py-3 rounded-2xl border border-border text-text hover:bg-background transition-all"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="bg-primary hover:bg-primary-dark text-sidebar font-semibold px-5 py-3 rounded-2xl transition-all duration-200"
-                    >
-                        Save Changes
-                    </button>
+                {/* FORM BODY */}
+                <div className="min-h-56">
+                    {/* LANGKAH 1: Username & Email */}
+                    {currentStep === 1 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Username <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="username"
+                                    value={formData.username}
+                                    onChange={handleChange}
+                                    placeholder="Masukkan username unik"
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Email Aktif <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    placeholder="contoh@domain.com"
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* LANGKAH 2: Nama Lengkap, Cabang, Role, Status */}
+                    {currentStep === 2 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Nama Lengkap <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="fullName"
+                                    value={formData.fullName}
+                                    onChange={handleChange}
+                                    placeholder="Masukkan nama lengkap"
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Role <span className="text-danger">*</span>
+                                </label>
+                                <select
+                                    name="role"
+                                    value={formData.role}
+                                    onChange={handleChange}
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                >
+                                    <option value="">Pilih Role</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Owner">Owner</option>
+                                    <option value="Kasir">Kasir</option>
+                                </select>
+                            </div>
+
+                            {formData.role !== "Owner" && (
+                                <div>
+                                    <label className="text-sm font-medium text-text">
+                                        Cabang <span className="text-danger">*</span>
+                                    </label>
+                                    <select
+                                        name="branch"
+                                        value={formData.branch}
+                                        onChange={handleChange}
+                                        className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                    >
+                                        <option value="">Pilih Cabang</option>
+                                        {branches.map((b) => (
+                                            <option key={b._id} value={b.name}>
+                                                {b.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Status
+                                </label>
+                                <select
+                                    name="status"
+                                    value={formData.status}
+                                    onChange={handleChange}
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                >
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* LANGKAH 3: Password & Konfirmasi Password */}
+                    {currentStep === 3 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Password <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    placeholder="Masukkan password"
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-text">
+                                    Konfirmasi Password <span className="text-danger">*</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    name="confirmPassword"
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                    placeholder="Ketik ulang password"
+                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* FOOTER NAVIGATION */}
+                <div className="flex items-center justify-between border-t border-border pt-6 mt-6">
+                    {/* BACK BUTTON */}
+                    <div>
+                        {currentStep > 1 ? (
+                            <button
+                                onClick={() => setCurrentStep((prev) => prev - 1)}
+                                className="px-5 py-3 rounded-2xl border border-border text-text hover:bg-background transition-all text-sm font-semibold cursor-pointer"
+                            >
+                                Kembali
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="px-5 py-3 rounded-2xl border border-border text-text hover:bg-background transition-all text-sm font-semibold cursor-pointer"
+                            >
+                                Batal
+                            </button>
+                        )}
+                    </div>
+
+                    {/* NEXT / SAVE BUTTON */}
+                    <div>
+                        {currentStep === 1 && (
+                            <button
+                                onClick={handleNextStep1}
+                                disabled={isVerifying}
+                                className="bg-primary hover:bg-primary-dark text-sidebar font-semibold px-6 py-3 rounded-2xl transition-all duration-200 text-sm shadow-sm flex items-center justify-center min-w-32 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isVerifying ? (
+                                    <div className="w-5 h-5 border-2 border-sidebar border-b-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    "Verifikasi & Lanjut"
+                                )}
+                            </button>
+                        )}
+                        {currentStep === 2 && (
+                            <button
+                                onClick={handleNextStep2}
+                                className="bg-primary hover:bg-primary-dark text-sidebar font-semibold px-6 py-3 rounded-2xl transition-all duration-200 text-sm shadow-sm cursor-pointer"
+                            >
+                                Lanjut
+                            </button>
+                        )}
+                        {currentStep === 3 && (
+                            <button
+                                onClick={handleSave}
+                                className="bg-primary hover:bg-primary-dark text-sidebar font-semibold px-6 py-3 rounded-2xl transition-all duration-200 text-sm shadow-sm cursor-pointer"
+                            >
+                                Simpan Akun
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
