@@ -91,6 +91,7 @@ const UserTable = ({
                             Full Name
                         </th>
                         <th className="text-left font-medium">Username</th>
+                        <th className="text-left font-medium">Email</th>
                         <th className="text-left font-medium">Role</th>
                         <th className="text-left font-medium">Branch</th>
                         <th className="text-left font-medium">Status</th>
@@ -102,7 +103,7 @@ const UserTable = ({
                     {isLoading ? (
                         <tr>
                             <td
-                                colSpan="6"
+                                colSpan="7"
                                 className="text-center py-8 text-text-secondary"
                             >
                                 Loading users...
@@ -111,7 +112,7 @@ const UserTable = ({
                     ) : users?.length === 0 ? (
                         <tr>
                             <td
-                                colSpan="6"
+                                colSpan="7"
                                 className="text-center py-8 text-text-secondary"
                             >
                                 Belum ada data user.
@@ -150,6 +151,10 @@ const UserTable = ({
 
                                     <td className="text-text">
                                         {user.username}
+                                    </td>
+
+                                    <td className="text-text">
+                                        {user.email || "-"}
                                     </td>
 
                                     <td>

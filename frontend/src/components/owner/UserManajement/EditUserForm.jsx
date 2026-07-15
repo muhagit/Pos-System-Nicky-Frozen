@@ -11,6 +11,7 @@ const EditUserForm = ({
   const [formData, setFormData] = useState({
     nama_lengkap: "",
     username: "",
+    email: "",
     role: "",
     cabang: "",
     status: "Active",
@@ -46,6 +47,7 @@ const EditUserForm = ({
       setFormData({
         nama_lengkap: selectedUser.nama_lengkap || "",
         username: selectedUser.username || "",
+        email: selectedUser.email || "",
         role: selectedUser.role || "",
         cabang:
           selectedUser.role === "Owner" ? "Pusat" : selectedUser.cabang || "",
@@ -74,14 +76,20 @@ const EditUserForm = ({
     if (
       !formData.nama_lengkap ||
       !formData.username ||
+      !formData.email ||
       !formData.role ||
       (formData.role !== "Owner" && !formData.cabang)
     ) {
       return Swal.fire(
         "Error",
-        "Mohon lengkapi nama, username, role, dan cabang.",
+        "Mohon lengkapi nama, username, email, role, dan cabang.",
         "error",
       );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      return Swal.fire("Error", "Format email tidak valid.", "error");
     }
 
     try {
@@ -94,6 +102,7 @@ const EditUserForm = ({
       const payload = {
         nama_lengkap: formData.nama_lengkap,
         username: formData.username,
+        email: formData.email.toLowerCase().trim(),
         role: formData.role,
         cabang: formData.role === "Owner" ? "Pusat" : formData.cabang,
         status: formData.status,
@@ -174,6 +183,19 @@ const EditUserForm = ({
               value={formData.username}
               onChange={handleChange}
               placeholder="Enter username"
+              className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+            />
+          </div>
+
+          {/* EMAIL */}
+          <div>
+            <label className="text-sm font-medium text-text">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Enter email address"
               className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
             />
           </div>

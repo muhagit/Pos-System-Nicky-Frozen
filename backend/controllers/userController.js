@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
+import dns from "dns";
 export const getUsers = async (req, res) => {
     try {
         // Mengambil semua user dari database, kecuali password-nya
@@ -49,6 +50,14 @@ export const updateUser = async (req, res) => {
             user.cabang = req.body.cabang || user.cabang;
             user.status = req.body.status || user.status;
 
+            if (req.body.email) {
+                const emailExists = await User.findOne({ email: req.body.email.toLowerCase() });
+                if (emailExists && emailExists._id.toString() !== user._id.toString()) {
+                    return res.status(400).json({ message: "Email sudah digunakan oleh user lain" });
+                }
+                user.email = req.body.email.toLowerCase();
+            }
+
             // Jika user mengganti password dari form edit
             if (req.body.password) {
                 user.password = req.body.password;
@@ -60,6 +69,7 @@ export const updateUser = async (req, res) => {
                 _id: updatedUser._id,
                 nama_lengkap: updatedUser.nama_lengkap,
                 username: updatedUser.username,
+                email: updatedUser.email,
                 role: updatedUser.role,
                 cabang: updatedUser.cabang,
                 status: updatedUser.status,
@@ -80,7 +90,7 @@ export const updateUser = async (req, res) => {
 // @access  Private (Owner, Admin)
 export const registerUser = async (req, res) => {
     try {
-        const { nama_lengkap, username, password, role, cabang, status } =
+        const { nama_lengkap, username, email, password, role, cabang, status } =
             req.body;
 
         // Cek apakah username sudah dipakai di database
@@ -88,6 +98,16 @@ export const registerUser = async (req, res) => {
         if (userExists) {
             return res.status(400).json({
                 message: "Username sudah digunakan, silakan pilih yang lain",
+            });
+        }
+
+        if (!email) {
+            return res.status(400).json({ message: "Email harus diisi" });
+        }
+        const emailExists = await User.findOne({ email: email.toLowerCase() });
+        if (emailExists) {
+            return res.status(400).json({
+                message: "Email sudah digunakan, silakan pilih yang lain",
             });
         }
 
@@ -100,6 +120,7 @@ export const registerUser = async (req, res) => {
         const user = await User.create({
             nama_lengkap,
             username,
+            email: email.toLowerCase(),
             password: hashedPassword, // <--- Masukkan hasil enkripsi ke sini
             role,
             cabang,
@@ -111,6 +132,7 @@ export const registerUser = async (req, res) => {
                 _id: user._id,
                 nama_lengkap: user.nama_lengkap,
                 username: user.username,
+                email: user.email,
                 role: user.role,
                 cabang: user.cabang,
                 status: user.status,
@@ -123,5 +145,61 @@ export const registerUser = async (req, res) => {
             message: "Gagal membuat user baru",
             error: error.message,
         });
+    }
+};
+
+const checkDomainMX = (domain) => {
+    return new Promise((resolve) => {
+        dns.resolveMx(domain, (err, addresses) => {
+            if (err) {
+                if (err.code === "ENOTFOUND") {
+                    return resolve(false);
+                }
+                return resolve(true);
+            }
+            if (!addresses || addresses.length === 0) {
+                return resolve(false);
+            }
+            resolve(true);
+        });
+    });
+};
+
+export const verifyUserStep1 = async (req, res) => {
+    try {
+        const { username, email } = req.body;
+
+        if (!username || !email) {
+            return res.status(400).json({ message: "Username dan email harus diisi" });
+        }
+
+        // 1. Cek username unik
+        const usernameExists = await User.findOne({ username });
+        if (usernameExists) {
+            return res.status(400).json({ message: "Username sudah digunakan, silakan pilih yang lain" });
+        }
+
+        // 2. Format email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: "Format email tidak valid" });
+        }
+
+        // 3. Cek email unik
+        const emailExists = await User.findOne({ email: email.toLowerCase() });
+        if (emailExists) {
+            return res.status(400).json({ message: "Email sudah digunakan, silakan pilih yang lain" });
+        }
+
+        // 4. Cek MX domain (real domain verification)
+        const domain = email.split("@")[1];
+        const isRealEmail = await checkDomainMX(domain);
+        if (!isRealEmail) {
+            return res.status(400).json({ message: "Email terdeteksi sebagai dummy atau domain tidak aktif" });
+        }
+
+        res.json({ success: true, message: "Username dan email valid" });
+    } catch (error) {
+        res.status(500).json({ message: "Gagal memverifikasi data", error: error.message });
     }
 };

@@ -4,10 +4,14 @@ import {
     registerUser,
     deleteUser,
     updateUser,
+    verifyUserStep1,
 } from "../controllers/userController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+// 0. VERIFY STEP 1: Cek username & email unik + aktif
+router.post("/verify-step1", protect, authorize("Owner", "Admin"), verifyUserStep1);
 
 // 1. READ: Mengambil semua user
 router.get("/", protect, authorize("Owner", "Admin", "Kasir"), getUsers);
