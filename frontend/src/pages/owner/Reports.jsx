@@ -20,6 +20,19 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branchBreakdown, setBranchBreakdown] = useState({});
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const { data } = await api.get("/branches");
+        setBranches(data || []);
+      } catch (err) {
+        console.error("Gagal mengambil data cabang:", err);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   // State untuk Paginasi Laporan
   const [currentPage, setCurrentPage] = useState(1);
@@ -279,26 +292,19 @@ const Reports = () => {
         >
           Semua Cabang
         </button>
-        <button
-          onClick={() => handleBranchChange("Cabang Solo")}
-          className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            selectedBranch === "Cabang Solo"
-              ? "bg-primary text-sidebar shadow-sm"
-              : "text-text-secondary hover:text-text hover:bg-background"
-          }`}
-        >
-          Cabang Solo
-        </button>
-        <button
-          onClick={() => handleBranchChange("Cabang Jogja")}
-          className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            selectedBranch === "Cabang Jogja"
-              ? "bg-primary text-sidebar shadow-sm"
-              : "text-text-secondary hover:text-text hover:bg-background"
-          }`}
-        >
-          Cabang Jogja
-        </button>
+        {branches.map((b) => (
+          <button
+            key={b._id}
+            onClick={() => handleBranchChange(b.name)}
+            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              selectedBranch.toLowerCase() === b.name.toLowerCase()
+                ? "bg-primary text-sidebar shadow-sm"
+                : "text-text-secondary hover:text-text hover:bg-background"
+            }`}
+          >
+            {b.name}
+          </button>
+        ))}
       </div>
 
       {/* SUMMARY */}
@@ -340,114 +346,80 @@ const Reports = () => {
           Ringkasan Transaksi Per Cabang
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Cabang Solo */}
-          <div className="bg-background p-4 rounded-xl border border-border space-y-2">
-            <h4 className="font-bold text-text text-sm">Cabang Solo</h4>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Total Pendapatan:</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(branchBreakdown["Cabang Solo"]?.revenue || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Total Transaksi:</span>
-              <span className="font-semibold text-text">
-                {branchBreakdown["Cabang Solo"]?.transactions || 0} transaksi
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Digital:</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(
-                  (branchBreakdown["Cabang Solo"]?.qris || 0) +
-                    (branchBreakdown["Cabang Solo"]?.transfer || 0) +
-                    (branchBreakdown["Cabang Solo"]?.card || 0)
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Tunai (Cash):</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(branchBreakdown["Cabang Solo"]?.cash || 0)}
-              </span>
-            </div>
-          </div>
-
-          {/* Cabang Jogja */}
-          <div className="bg-background p-4 rounded-xl border border-border space-y-2">
-            <h4 className="font-bold text-text text-sm">Cabang Jogja</h4>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Total Pendapatan:</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(branchBreakdown["Cabang Jogja"]?.revenue || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Total Transaksi:</span>
-              <span className="font-semibold text-text">
-                {branchBreakdown["Cabang Jogja"]?.transactions || 0} transaksi
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Digital:</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(
-                  (branchBreakdown["Cabang Jogja"]?.qris || 0) +
-                    (branchBreakdown["Cabang Jogja"]?.transfer || 0) +
-                    (branchBreakdown["Cabang Jogja"]?.card || 0)
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Tunai (Cash):</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(branchBreakdown["Cabang Jogja"]?.cash || 0)}
-              </span>
-            </div>
-          </div>
+          {/* Dynamic Branches Breakdown */}
+          {Object.keys(branchBreakdown).map((branchName) => {
+            const data = branchBreakdown[branchName] || {};
+            return (
+              <div key={branchName} className="bg-background p-4 rounded-xl border border-border space-y-2">
+                <h4 className="font-bold text-text text-sm">{branchName}</h4>
+                <div className="flex justify-between text-xs text-text-secondary">
+                  <span>Total Pendapatan:</span>
+                  <span className="font-semibold text-text">
+                    {formatRupiah(data.revenue || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-text-secondary">
+                  <span>Total Transaksi:</span>
+                  <span className="font-semibold text-text">
+                    {data.transactions || 0} transaksi
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-text-secondary">
+                  <span>Digital:</span>
+                  <span className="font-semibold text-text">
+                    {formatRupiah(
+                      (data.qris || 0) +
+                      (data.transfer || 0) +
+                      (data.card || 0)
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-text-secondary">
+                  <span>Tunai (Cash):</span>
+                  <span className="font-semibold text-text">
+                    {formatRupiah(data.cash || 0)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
 
           {/* Total Gabungan */}
-          <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-2">
-            <h4 className="font-bold text-primary text-sm">Total Gabungan Kedua Cabang</h4>
-            <div className="flex justify-between text-xs text-primary/80">
-              <span>Total Pendapatan:</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(
-                  (branchBreakdown["Cabang Solo"]?.revenue || 0) +
-                  (branchBreakdown["Cabang Jogja"]?.revenue || 0)
-                )}
-              </span>
+          {Object.keys(branchBreakdown).length > 0 && (
+            <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-2 col-span-1 md:col-span-2 xl:col-span-1">
+              <h4 className="font-bold text-primary text-sm">Total Gabungan Semua Cabang</h4>
+              <div className="flex justify-between text-xs text-primary/80">
+                <span>Total Pendapatan:</span>
+                <span className="font-semibold text-text">
+                  {formatRupiah(
+                    Object.values(branchBreakdown).reduce((sum, b) => sum + (b.revenue || 0), 0)
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs text-primary/80">
+                <span>Total Transaksi:</span>
+                <span className="font-semibold text-text">
+                  {Object.values(branchBreakdown).reduce((sum, b) => sum + (b.transactions || 0), 0)} transaksi
+                </span>
+              </div>
+              <div className="flex justify-between text-xs text-primary/80">
+                <span>Digital:</span>
+                <span className="font-semibold text-text">
+                  {formatRupiah(
+                    Object.values(branchBreakdown).reduce((sum, b) => sum + (b.qris || 0) + (b.transfer || 0) + (b.card || 0), 0)
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs text-primary/80">
+                <span>Tunai (Cash):</span>
+                <span className="font-semibold text-text">
+                  {formatRupiah(
+                    Object.values(branchBreakdown).reduce((sum, b) => sum + (b.cash || 0), 0)
+                  )}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-xs text-primary/80">
-              <span>Total Transaksi:</span>
-              <span className="font-semibold text-text">
-                {(branchBreakdown["Cabang Solo"]?.transactions || 0) +
-                 (branchBreakdown["Cabang Jogja"]?.transactions || 0)} transaksi
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-primary/80">
-              <span>Digital:</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(
-                  (branchBreakdown["Cabang Solo"]?.qris || 0) +
-                  (branchBreakdown["Cabang Solo"]?.transfer || 0) +
-                  (branchBreakdown["Cabang Solo"]?.card || 0) +
-                  (branchBreakdown["Cabang Jogja"]?.qris || 0) +
-                  (branchBreakdown["Cabang Jogja"]?.transfer || 0) +
-                  (branchBreakdown["Cabang Jogja"]?.card || 0)
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs text-primary/80">
-              <span>Tunai (Cash):</span>
-              <span className="font-semibold text-text">
-                {formatRupiah(
-                  (branchBreakdown["Cabang Solo"]?.cash || 0) +
-                  (branchBreakdown["Cabang Jogja"]?.cash || 0)
-                )}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

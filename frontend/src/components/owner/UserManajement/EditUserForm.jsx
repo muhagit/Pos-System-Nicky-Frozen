@@ -8,7 +8,6 @@ const EditUserForm = ({
   selectedUser,
   fetchUsers,
 }) => {
-  // State untuk form values (Tanpa password)
   const [formData, setFormData] = useState({
     nama_lengkap: "",
     username: "",
@@ -16,6 +15,30 @@ const EditUserForm = ({
     cabang: "",
     status: "Active",
   });
+
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+        const config = {
+          headers: { Authorization: `Bearer ${userInfo?.token}` },
+        };
+        const { data } = await axios.get(
+          "http://localhost:5000/api/branches?activeOnly=true",
+          config
+        );
+        setBranches(data || []);
+      } catch (error) {
+        console.error("Gagal mengambil data cabang:", error);
+      }
+    };
+
+    if (showModal) {
+      fetchBranches();
+    }
+  }, [showModal]);
 
   // Mengisi form secara otomatis saat selectedUser berubah
   useEffect(() => {
@@ -182,8 +205,11 @@ const EditUserForm = ({
                 className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
               >
                 <option value="">Select Branch</option>
-                <option value="Cabang Jogja">Cabang Jogja</option>
-                <option value="Cabang Solo">Cabang Solo</option>
+                {branches.map((b) => (
+                  <option key={b._id} value={b.name}>
+                    {b.name}
+                  </option>
+                ))}
               </select>
             </div>
           )}

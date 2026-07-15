@@ -17,6 +17,12 @@ import {
 } from "react-icons/fi";
 
 const AdminBranchSync = () => {
+    // Auth headers
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    const config = {
+        headers: { Authorization: `Bearer ${userInfo?.token}` }
+    };
+
     // States
     const [products, setProducts] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -24,11 +30,12 @@ const AdminBranchSync = () => {
     const [activeTab, setActiveTab] = useState("overview"); // overview, transfer, adjust, logs
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
+    const [branches, setBranches] = useState([]);
 
     // Form States
     const [transferForm, setTransferForm] = useState({
         produk_id: "",
-        dari_cabang: "",
+        dari_cabang: userInfo?.cabang || "",
         ke_cabang: "",
         jumlah: "",
         keterangan: ""
@@ -36,29 +43,23 @@ const AdminBranchSync = () => {
 
     const [adjustForm, setAdjustForm] = useState({
         produk_id: "",
-        cabang: "",
+        cabang: userInfo?.cabang || "",
         jumlah: "",
         keterangan: ""
     });
-
-    const branches = ["Cabang Jogja", "Cabang Solo"];
-    
-    // Auth headers
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-    const config = {
-        headers: { Authorization: `Bearer ${userInfo?.token}` }
-    };
 
     // Load Data
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [prodRes, logRes] = await Promise.all([
+            const [prodRes, logRes, branchRes] = await Promise.all([
                 API.get("/products?allBranches=true", config),
-                API.get("/products/transfer-logs", config)
+                API.get("/products/transfer-logs", config),
+                API.get("/branches", config)
             ]);
             setProducts(prodRes.data);
             setLogs(logRes.data);
+            setBranches((branchRes.data || []).filter(b => b.isActive).map(b => b.name));
         } catch (error) {
             console.error("Gagal memuat data branch sync:", error);
             Swal.fire("Error", "Gagal mengambil data dari server", "error");
@@ -127,7 +128,7 @@ const AdminBranchSync = () => {
                 });
                 setTransferForm({
                     produk_id: "",
-                    dari_cabang: "",
+                    dari_cabang: userInfo?.cabang || "",
                     ke_cabang: "",
                     jumlah: "",
                     keterangan: ""
@@ -449,35 +450,45 @@ const AdminBranchSync = () => {
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-sm font-medium text-text">Cabang Asal (Source)</label>
-                                            <select
-                                                value={transferForm.dari_cabang}
-                                                onChange={(e) => setTransferForm({ ...transferForm, dari_cabang: e.target.value })}
-                                                className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text text-sm focus:border-primary transition"
-                                                required
-                                            >
-                                                <option value="">-- Pilih Cabang --</option>
-                                                {branches.map(b => (
-                                                    <option key={b} value={b}>{b}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-text">Cabang Tujuan (Dest)</label>
-                                            <select
-                                                value={transferForm.ke_cabang}
-                                                onChange={(e) => setTransferForm({ ...transferForm, ke_cabang: e.target.value })}
-                                                className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text text-sm focus:border-primary transition"
-                                                required
-                                            >
-                                                <option value="">-- Pilih Cabang --</option>
-                                                {branches.map(b => (
-                                                    <option key={b} value={b}>{b}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
+                                         <div>
+                                             <label className="text-sm font-medium text-text">Cabang Asal (Source)</label>
+                                             {userInfo?.role === "Owner" ? (
+                                                 <select
+                                                     value={transferForm.dari_cabang}
+                                                     onChange={(e) => setTransferForm({ ...transferForm, dari_cabang: e.target.value })}
+                                                     className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text text-sm focus:border-primary transition"
+                                                     required
+                                                 >
+                                                     <option value="">-- Pilih Cabang --</option>
+                                                     {branches.map(b => (
+                                                         <option key={b} value={b}>{b}</option>
+                                                     ))}
+                                                 </select>
+                                             ) : (
+                                                 <input
+                                                     type="text"
+                                                     value={transferForm.dari_cabang}
+                                                     readOnly
+                                                     className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-gray-100 outline-none text-text-secondary text-sm cursor-not-allowed"
+                                                     required
+                                                 />
+                                             )}
+                                         </div>
+                                         <div>
+                                             <label className="text-sm font-medium text-text">Cabang Tujuan (Dest)</label>
+                                             <select
+                                                 value={transferForm.ke_cabang}
+                                                 onChange={(e) => setTransferForm({ ...transferForm, ke_cabang: e.target.value })}
+                                                 className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text text-sm focus:border-primary transition"
+                                                 required
+                                             >
+                                                 <option value="">-- Pilih Cabang --</option>
+                                                 {branches.filter(b => b !== transferForm.dari_cabang).map(b => (
+                                                     <option key={b} value={b}>{b}</option>
+                                                 ))}
+                                             </select>
+                                         </div>
+                                     </div>
 
                                     {/* Preview Stok Source */}
                                     {transferForm.produk_id && transferForm.dari_cabang && (

@@ -11,13 +11,13 @@ import {
 
 // Dummy data — ganti dengan data dari API
 const defaultData = [
-  { hari: "Sen", cabangA: 1200000, cabangB: 980000 },
-  { hari: "Sel", cabangA: 1450000, cabangB: 1100000 },
-  { hari: "Rab", cabangA: 1100000, cabangB: 1300000 },
-  { hari: "Kam", cabangA: 1600000, cabangB: 1250000 },
-  { hari: "Jum", cabangA: 1800000, cabangB: 1500000 },
-  { hari: "Sab", cabangA: 2100000, cabangB: 1900000 },
-  { hari: "Min", cabangA: 1950000, cabangB: 1700000 },
+  { hari: "Sen", "Cabang Solo": 1200000, "Cabang Jogja": 980000 },
+  { hari: "Sel", "Cabang Solo": 1450000, "Cabang Jogja": 1100000 },
+  { hari: "Rab", "Cabang Solo": 1100000, "Cabang Jogja": 1300000 },
+  { hari: "Kam", "Cabang Solo": 1600000, "Cabang Jogja": 1250000 },
+  { hari: "Jum", "Cabang Solo": 1800000, "Cabang Jogja": 1500000 },
+  { hari: "Sab", "Cabang Solo": 2100000, "Cabang Jogja": 1900000 },
+  { hari: "Min", "Cabang Solo": 1950000, "Cabang Jogja": 1700000 },
 ];
 
 const formatRupiah = (value) =>
@@ -49,13 +49,24 @@ const CustomTooltip = ({ active, payload, label }) => {
  * - data : array — override dummy data dari API (opsional)
  */
 const RevenueChart = ({ data = defaultData }) => {
+  // Ambil nama cabang secara dinamis dari keys data (kecuali key "hari")
+  const branchKeys = data.length > 0 
+    ? Object.keys(data[0]).filter(key => key !== 'hari')
+    : [];
+
+  const colors = ["#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#3b82f6"];
+
   return (
     <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
       {/* HEADER */}
       <div className="mb-4">
         <h2 className="font-semibold text-text text-sm">Penjualan Mingguan</h2>
         <p className="text-xs text-text-secondary mt-0.5">
-          Perbandingan Cabang Solo vs Cabang Jogja
+          {branchKeys.length > 1 
+            ? `Perbandingan Penjualan Antar Cabang` 
+            : branchKeys.length === 1 
+              ? `Penjualan ${branchKeys[0]}` 
+              : "Data Penjualan Cabang"}
         </p>
       </div>
 
@@ -63,14 +74,15 @@ const RevenueChart = ({ data = defaultData }) => {
       <ResponsiveContainer width="100%" height={210}>
         <AreaChart data={data}>
           <defs>
-            <linearGradient id="gradCabangA" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="gradCabangB" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-            </linearGradient>
+            {branchKeys.map((key, index) => {
+              const color = colors[index % colors.length];
+              return (
+                <linearGradient key={key} id={`grad_${key.replace(/\s+/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={color} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              );
+            })}
           </defs>
 
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -100,22 +112,20 @@ const RevenueChart = ({ data = defaultData }) => {
             }}
           />
 
-          <Area
-            type="monotone"
-            dataKey="cabangA"
-            name="Cabang Solo"
-            stroke="#22d3ee"
-            strokeWidth={2}
-            fill="url(#gradCabangA)"
-          />
-          <Area
-            type="monotone"
-            dataKey="cabangB"
-            name="Cabang Jogja"
-            stroke="#10b981"
-            strokeWidth={2}
-            fill="url(#gradCabangB)"
-          />
+          {branchKeys.map((key, index) => {
+            const color = colors[index % colors.length];
+            return (
+              <Area
+                key={key}
+                type="monotone"
+                dataKey={key}
+                name={key}
+                stroke={color}
+                strokeWidth={2}
+                fill={`url(#grad_${key.replace(/\s+/g, '')})`}
+              />
+            );
+          })}
         </AreaChart>
       </ResponsiveContainer>
     </div>

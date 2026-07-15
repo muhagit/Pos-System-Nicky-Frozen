@@ -15,6 +15,7 @@ const UserManagement = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRole, setSelectedRole] = useState("All");
     const [selectedBranch, setSelectedBranch] = useState("All");
+    const [branches, setBranches] = useState([]);
 
     // Fungsi untuk mengambil data user dari backend
     const fetchUsers = async () => {
@@ -39,9 +40,26 @@ const UserManagement = () => {
         }
     };
 
+    const fetchBranches = async () => {
+        try {
+            const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+            const config = {
+                headers: { Authorization: `Bearer ${userInfo?.token}` },
+            };
+            const { data } = await axios.get(
+                "http://localhost:5000/api/branches",
+                config
+            );
+            setBranches(data || []);
+        } catch (error) {
+            console.error("Gagal mengambil data cabang:", error);
+        }
+    };
+
     // Panggil fetchUsers saat halaman pertama kali dibuka
     useEffect(() => {
         fetchUsers();
+        fetchBranches();
     }, []);
 
     // Reset filter cabang ketika filter role berubah
@@ -150,26 +168,19 @@ const UserManagement = () => {
                     >
                         Semua Cabang
                     </button>
-                    <button
-                        onClick={() => setSelectedBranch("Cabang Solo")}
-                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                            selectedBranch === "Cabang Solo"
-                                ? "bg-primary text-sidebar shadow-sm"
-                                : "text-text-secondary hover:text-text hover:bg-background"
-                        }`}
-                    >
-                        Cabang Solo
-                    </button>
-                    <button
-                        onClick={() => setSelectedBranch("Cabang Jogja")}
-                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                            selectedBranch === "Cabang Jogja"
-                                ? "bg-primary text-sidebar shadow-sm"
-                                : "text-text-secondary hover:text-text hover:bg-background"
-                        }`}
-                    >
-                        Cabang Jogja
-                    </button>
+                    {branches.map((b) => (
+                        <button
+                            key={b._id}
+                            onClick={() => setSelectedBranch(b.name)}
+                            className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                                selectedBranch.toLowerCase() === b.name.toLowerCase()
+                                    ? "bg-primary text-sidebar shadow-sm"
+                                    : "text-text-secondary hover:text-text hover:bg-background"
+                            }`}
+                        >
+                            {b.name}
+                        </button>
+                    ))}
                 </div>
             )}
 

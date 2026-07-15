@@ -11,6 +11,7 @@ import userRoutes from "./routes/userRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
+import branchRoutes from "./routes/branchRoutes.js";
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/branches", branchRoutes);
 
 // Konfigurasi folder statis untuk gambar
 const __dirname = path.resolve();

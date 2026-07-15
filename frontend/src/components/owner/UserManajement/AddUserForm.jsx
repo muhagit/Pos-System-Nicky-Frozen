@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios"; // Tambahkan import axios
 import Swal from "sweetalert2";
 
@@ -14,6 +14,30 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
         status: "Active",
     });
 
+    const [branches, setBranches] = useState([]);
+
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+                const config = {
+                    headers: { Authorization: `Bearer ${userInfo?.token}` },
+                };
+                const { data } = await axios.get(
+                    "http://localhost:5000/api/branches?activeOnly=true",
+                    config
+                );
+                setBranches(data || []);
+            } catch (error) {
+                console.error("Gagal mengambil data cabang:", error);
+            }
+        };
+
+        if (showModal) {
+            fetchBranches();
+        }
+    }, [showModal]);
+
     // Jika modal tidak ditampilkan, jangan render apa-apa
     if (!showModal) return null;
 
@@ -28,8 +52,10 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
             "username",
             "password",
             "role",
-            "branch",
         ];
+        if (formData.role !== "Owner") {
+            requiredFields.push("branch");
+        }
         const missingFields = requiredFields.filter(
             (field) => !formData[field]?.trim(),
         );
@@ -63,7 +89,7 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 username: formData.username,
                 password: formData.password,
                 role: formData.role,
-                cabang: formData.branch,
+                cabang: formData.role === "Owner" ? "Pusat" : formData.branch,
                 status: formData.status,
             };
 
@@ -198,21 +224,26 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                     </div>
 
                     {/* BRANCH - required */}
-                    <div>
-                        <label className="text-sm font-medium text-text">
-                            Branch <span className="text-danger">*</span>
-                        </label>
-                        <select
-                            name="branch"
-                            value={formData.branch}
-                            onChange={handleChange}
-                            className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                        >
-                            <option value="">Select Branch</option>
-                            <option value="Cabang Jogja">Cabang Jogja</option>
-                            <option value="Cabang Solo">Cabang Solo</option>
-                        </select>
-                    </div>
+                    {formData.role !== "Owner" && (
+                        <div>
+                            <label className="text-sm font-medium text-text">
+                                Branch <span className="text-danger">*</span>
+                            </label>
+                            <select
+                                name="branch"
+                                value={formData.branch}
+                                onChange={handleChange}
+                                className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                            >
+                                <option value="">Select Branch</option>
+                                {branches.map((b) => (
+                                    <option key={b._id} value={b.name}>
+                                        {b.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     {/* STATUS - optional, default Active */}
                     <div>

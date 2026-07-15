@@ -2,6 +2,7 @@ import Transaction from "../models/Transaction.js";
 import Product from "../models/Product.js";
 import DailyReport from "../models/DailyReport.js";
 import ShiftRecord from "../models/ShiftRecord.js";
+import Branch from "../models/Branch.js";
 
 export const getOwnerDashboard = async (req, res) => {
     try {
@@ -73,7 +74,8 @@ export const getOwnerDashboard = async (req, res) => {
         });
 
         // 4. RINGKASAN CABANG (Group by Cabang)
-        const branchesList = ["Cabang Solo", "Cabang Jogja"];
+        const activeBranches = await Branch.find({ isActive: true });
+        const branchesList = activeBranches.map(b => b.name);
         const reportsToday = await DailyReport.find({
             createdAt: { $gte: today, $lt: tomorrow }
         });
@@ -131,6 +133,7 @@ export const getOwnerDashboard = async (req, res) => {
             createdAt: { $gte: sevenDaysAgo, $lt: tomorrow },
             is_hold: false,
         });
+        const allBranches = await Branch.find({});
         const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
         const revenueMap = {};
 
@@ -139,17 +142,20 @@ export const getOwnerDashboard = async (req, res) => {
             const d = new Date(sevenDaysAgo);
             d.setDate(d.getDate() + i);
             const dayName = days[d.getDay()];
-            revenueMap[dayName] = { hari: dayName, cabangA: 0, cabangB: 0 };
+            revenueMap[dayName] = { hari: dayName };
+            allBranches.forEach(b => {
+                revenueMap[dayName][b.name] = 0;
+            });
         }
 
         trx7Days.forEach((t) => {
             const dayName = days[t.createdAt.getDay()];
-            if (revenueMap[dayName]) {
-                // Mapping cabang dinamis (sesuaikan dengan nama cabang di database Anda)
-                if (t.cabang === "Cabang Solo")
-                    revenueMap[dayName].cabangA += t.total_pembayaran;
-                else if (t.cabang === "Cabang Jogja")
-                    revenueMap[dayName].cabangB += t.total_pembayaran;
+            if (revenueMap[dayName] && t.cabang) {
+                if (revenueMap[dayName][t.cabang] !== undefined) {
+                    revenueMap[dayName][t.cabang] += t.total_pembayaran;
+                } else {
+                    revenueMap[dayName][t.cabang] = t.total_pembayaran;
+                }
             }
         });
         const revenueData = Object.values(revenueMap);
