@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
             required: true,
         },
         cabang: { type: String, required: true },
+        status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
     },
     { timestamps: true },
 );

@@ -57,7 +57,6 @@ const DashboardOwner = () => {
     selisihKas: 0,
     produkHampirHabis: 0,
   });
-  const [ringkasanCabang, setRingkasanCabang] = useState([]);
   const [notifikasiTerbaru, setNotifikasiTerbaru] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
 
@@ -81,7 +80,6 @@ const DashboardOwner = () => {
         );
 
         setStats(data.stats);
-        setRingkasanCabang(data.cabang);
         setNotifikasiTerbaru(data.notifikasi);
 
         // Set data chart dari backend
@@ -239,59 +237,7 @@ const DashboardOwner = () => {
               </div>
             </div>
 
-            {/* ── BOTTOM ROW ── */}
-            <div className="grid grid-cols-1 gap-4">
-              {/* Ringkasan Per Cabang */}
-              <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
-                <div className="mb-4">
-                  <h2 className="font-semibold text-text text-sm">
-                    Ringkasan Per Cabang
-                  </h2>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    Data transaksi hari ini
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {ringkasanCabang.length === 0 ? (
-                    <p className="text-sm text-gray-500 col-span-2 text-center py-4">
-                      Belum ada transaksi hari ini
-                    </p>
-                  ) : (
-                    ringkasanCabang.map((c, i) => (
-                      <div
-                        key={i}
-                        className={`rounded-xl p-4 border ${c.selisih ? "border-danger/30 bg-danger/5" : "border-border bg-background"}`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="font-semibold text-sm text-text">
-                            {c.nama}
-                          </p>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.selisih ? "bg-danger/10 text-danger" : "bg-success/10 text-success"}`}
-                          >
-                            {c.selisih ? "Ada Selisih" : "Aman"}
-                          </span>
-                        </div>
-                        <div className="space-y-2 text-xs">
-                          <div className="flex justify-between text-text-secondary">
-                            <span>Total Penjualan</span>
-                            <span className="font-semibold text-text">
-                              {formatRupiah(c.penjualan)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-text-secondary">
-                            <span>Total Transaksi</span>
-                            <span className="font-semibold text-text">
-                              {c.transaksi} transaksi
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
+
             <NotificationPopup
               open={showNotification}
               onClose={() => setShowNotification(false)}

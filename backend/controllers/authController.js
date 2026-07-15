@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Branch from "../models/Branch.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -65,13 +66,28 @@ export const loginUser = async (req, res) => {
         const user = await User.findOne({ username });
 
         // Cocokkan password yang diinput dengan password yang di-hash di database
+        // Cocokkan password yang diinput dengan password yang di-hash di database
         if (user && (await bcrypt.compare(password, user.password))) {
+            // Cek apakah status user Inactive
+            if (user.status === "Inactive") {
+                return res.status(401).json({ message: "Akun Anda telah dinonaktifkan. Silakan hubungi Owner." });
+            }
+
+            // Cek apakah cabang untuk user (selain Owner) masih ada di database
+            if (user.role !== "Owner" && user.cabang && user.cabang.toLowerCase() !== "pusat" && user.cabang.toLowerCase() !== "cabang pusat") {
+                const branchExists = await Branch.findOne({ name: user.cabang });
+                if (!branchExists) {
+                    return res.status(401).json({ message: "Akses Ditolak: Cabang untuk akun ini sudah tidak tersedia atau telah dihapus." });
+                }
+            }
+
             res.json({
                 _id: user.id,
                 username: user.username,
                 nama_lengkap: user.nama_lengkap,
                 role: user.role,
                 cabang: user.cabang,
+                status: user.status,
                 token: generateToken(user._id),
             });
         } else {

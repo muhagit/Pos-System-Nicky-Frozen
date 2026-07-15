@@ -1,4 +1,5 @@
 import Branch from "../models/Branch.js";
+import User from "../models/User.js";
 
 // @desc    Get all branches
 // @route   GET /api/branches
@@ -52,6 +53,7 @@ export const updateBranch = async (req, res) => {
             return res.status(404).json({ message: "Cabang tidak ditemukan" });
         }
         
+        let oldName = branch.name;
         if (name && name !== branch.name) {
             const branchExists = await Branch.findOne({ name });
             if (branchExists) {
@@ -68,6 +70,12 @@ export const updateBranch = async (req, res) => {
         }
         
         const updatedBranch = await branch.save();
+
+        // Update branch name in associated users if name was changed
+        if (name && name !== oldName) {
+            await User.updateMany({ cabang: oldName }, { cabang: name });
+        }
+        
         res.json(updatedBranch);
     } catch (error) {
         res.status(500).json({ message: "Gagal memperbarui cabang", error: error.message });
@@ -83,8 +91,13 @@ export const deleteBranch = async (req, res) => {
         if (!branch) {
             return res.status(404).json({ message: "Cabang tidak ditemukan" });
         }
+        const branchName = branch.name;
         await Branch.findByIdAndDelete(req.params.id);
-        res.json({ message: "Cabang berhasil dihapus" });
+        
+        // Nonaktifkan semua user yang terkait dengan cabang yang dihapus
+        await User.updateMany({ cabang: branchName }, { status: "Inactive" });
+
+        res.json({ message: "Cabang berhasil dihapus dan user terkait dinonaktifkan" });
     } catch (error) {
         res.status(500).json({ message: "Gagal menghapus cabang", error: error.message });
     }

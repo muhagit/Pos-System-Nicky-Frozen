@@ -163,7 +163,7 @@ const UserTable = ({
                                     </td>
 
                                     <td>
-                                        <span className="bg-success/10 text-success px-3 py-1 rounded-full text-xs font-semibold">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${userStatus === 'Active' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
                                             {userStatus}
                                         </span>
                                     </td>
