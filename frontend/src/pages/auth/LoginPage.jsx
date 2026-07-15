@@ -5,11 +5,20 @@ import Swal from "sweetalert2"; // Gunakan huruf kapital 'S' sesuai konvensi
 import loginBg from "../../assets/login-bg.jpg";
 
 const LoginPage = () => {
-    const [rememberMe, setRememberMe] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
         password: "",
     });
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    // State untuk OTP
+    const [forgotStep, setForgotStep] = useState("email"); // "email", "otp", atau "reset"
+    const [otp, setOtp] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [maskedEmail, setMaskedEmail] = useState("");
 
     // Inisialisasi useNavigate
     const navigate = useNavigate();
@@ -62,6 +71,98 @@ const LoginPage = () => {
                 confirmButtonColor: "#ef4444", // Warna merah (Danger)
                 confirmButtonText: "Coba Lagi",
             });
+        }
+    };
+
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        if (!forgotEmail) {
+            return Swal.fire("Oops", "Masukkan Username atau Email Anda terlebih dahulu.", "warning");
+        }
+        try {
+            setIsSending(true);
+            const response = await API.post("/auth/forgot-password", { email: forgotEmail });
+            
+            setMaskedEmail(response.data.maskedEmail);
+            setForgotEmail(response.data.email); // simpan email asli untuk request reset password nantinya
+            
+            Swal.fire({
+                title: "Terkirim!",
+                text: `Silakan cek email ${response.data.maskedEmail} untuk instruksi reset password.`,
+                icon: "success",
+            });
+            setForgotStep("otp");
+        } catch (error) {
+            Swal.fire({
+                title: "Gagal",
+                text: error.response?.data?.message || "Gagal mengirim email reset password.",
+                icon: "error",
+            });
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e) => {
+        e.preventDefault();
+        if (!otp || otp.length !== 6) {
+            return Swal.fire("Oops", "Masukkan 6 digit kode OTP dengan benar.", "warning");
+        }
+        try {
+            setIsSending(true);
+            await API.post("/auth/verify-otp", {
+                email: forgotEmail,
+                otp: otp
+            });
+            // Jika berhasil (200), lanjut ke step reset password
+            setForgotStep("reset");
+        } catch (error) {
+            Swal.fire({
+                title: "Gagal",
+                text: error.response?.data?.message || "Kode OTP salah atau kedaluwarsa.",
+                icon: "error",
+            });
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        if (!newPassword || !confirmPassword) {
+            return Swal.fire("Oops", "Mohon masukkan password baru Anda.", "warning");
+        }
+        if (newPassword !== confirmPassword) {
+            return Swal.fire("Oops", "Password dan Konfirmasi Password tidak cocok.", "warning");
+        }
+
+        try {
+            setIsSending(true);
+            await API.post("/auth/reset-password", {
+                email: forgotEmail,
+                otp: otp,
+                password: newPassword
+            });
+            Swal.fire({
+                title: "Berhasil!",
+                text: "Password Anda berhasil diubah. Silakan login.",
+                icon: "success",
+            });
+            setShowForgotModal(false);
+            setForgotStep("email");
+            setForgotEmail("");
+            setMaskedEmail("");
+            setOtp("");
+            setNewPassword("");
+            setConfirmPassword("");
+        } catch (error) {
+            Swal.fire({
+                title: "Gagal",
+                text: error.response?.data?.message || "Kode OTP tidak valid atau kedaluwarsa.",
+                icon: "error",
+            });
+        } finally {
+            setIsSending(false);
         }
     };
 
@@ -175,12 +276,12 @@ const LoginPage = () => {
                         {/* Email / Username */}
                         <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium text-[var(--color-text)]">
-                                Username
+                                Username / Email
                             </label>
                             <input
                                 type="text"
                                 name="username"
-                                placeholder="Masukkan username Anda"
+                                placeholder="Masukkan username atau email Anda"
                                 onChange={handleChange}
                                 className="border border-[var(--color-border)] rounded-xl px-4 py-3 text-sm text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
                             />
@@ -200,21 +301,19 @@ const LoginPage = () => {
                             />
                         </div>
 
-                        {/* Remember Me & Forgot Password */}
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={rememberMe}
-                                    onChange={() => setRememberMe(!rememberMe)}
-                                    className="w-4 h-4 accent-[var(--color-primary)] cursor-pointer"
-                                />
-                                <span className="text-sm text-[var(--color-text)]">
-                                    Remember me
-                                </span>
-                            </label>
+                        {/* Forgot Password */}
+                        <div className="flex items-center justify-end">
                             <button
                                 type="button"
+                                onClick={() => {
+                                    setForgotStep("email");
+                                    setForgotEmail("");
+                                    setMaskedEmail("");
+                                    setOtp("");
+                                    setNewPassword("");
+                                    setConfirmPassword("");
+                                    setShowForgotModal(true);
+                                }}
                                 className="text-sm font-medium text-[var(--color-primary-dark)] hover:underline cursor-pointer bg-transparent border-none"
                             >
                                 Forgot password?
@@ -236,6 +335,131 @@ const LoginPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Forgot Password Modal */}
+            {showForgotModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-fade-in relative">
+                        <button
+                            onClick={() => setShowForgotModal(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer text-2xl"
+                        >
+                            &times;
+                        </button>
+                        
+                        {forgotStep === "email" ? (
+                            <>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">Forgot Password</h2>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    Masukkan Username atau Email yang terdaftar untuk akun Anda. Kami akan mengirimkan 6 digit kode OTP ke email Anda.
+                                </p>
+                                
+                                <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-sm font-medium text-gray-700">Username / Email Address</label>
+                                        <input
+                                            type="text"
+                                            value={forgotEmail}
+                                            onChange={(e) => setForgotEmail(e.target.value)}
+                                            placeholder="Masukkan username atau email"
+                                            required
+                                            className="border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#22d3ee] focus:border-transparent transition-all"
+                                        />
+                                    </div>
+                                    
+                                    <button
+                                        type="submit"
+                                        disabled={isSending}
+                                        className="mt-2 w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        style={{
+                                            background: "linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%)",
+                                        }}
+                                    >
+                                        {isSending ? "Mengirim..." : "Kirim Kode OTP"}
+                                    </button>
+                                </form>
+                            </>
+                        ) : forgotStep === "otp" ? (
+                            <>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">Verifikasi OTP</h2>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    Kode OTP telah dikirim ke <strong>{maskedEmail}</strong>. Masukkan kode tersebut untuk melanjutkan.
+                                </p>
+                                
+                                <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-sm font-medium text-gray-700">Kode OTP (6 Digit)</label>
+                                        <input
+                                            type="text"
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value)}
+                                            placeholder="123456"
+                                            required
+                                            maxLength={6}
+                                            className="border border-gray-300 rounded-xl px-4 py-3 text-sm text-center tracking-[0.5em] font-bold text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#22d3ee] focus:border-transparent transition-all"
+                                        />
+                                    </div>
+                                    
+                                    <button
+                                        type="submit"
+                                        disabled={isSending}
+                                        className="mt-2 w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        style={{
+                                            background: "linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%)",
+                                        }}
+                                    >
+                                        {isSending ? "Memeriksa..." : "Verifikasi OTP"}
+                                    </button>
+                                </form>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">Buat Password Baru</h2>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    Kode OTP berhasil diverifikasi! Silakan buat password baru untuk akun Anda.
+                                </p>
+                                
+                                <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-sm font-medium text-gray-700">Password Baru</label>
+                                        <input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="••••••••"
+                                            required
+                                            className="border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#22d3ee] focus:border-transparent transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-sm font-medium text-gray-700">Konfirmasi Password</label>
+                                        <input
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            placeholder="••••••••"
+                                            required
+                                            className="border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#22d3ee] focus:border-transparent transition-all"
+                                        />
+                                    </div>
+                                    
+                                    <button
+                                        type="submit"
+                                        disabled={isSending}
+                                        className="mt-2 w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        style={{
+                                            background: "linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%)",
+                                        }}
+                                    >
+                                        {isSending ? "Menyimpan..." : "Simpan Password Baru"}
+                                    </button>
+                                </form>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

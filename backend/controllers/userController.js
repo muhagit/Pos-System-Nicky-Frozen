@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import dns from "dns";
+import sendEmail from "../utils/sendEmail.js";
 export const getUsers = async (req, res) => {
     try {
         // Mengambil semua user dari database, kecuali password-nya
@@ -128,6 +129,38 @@ export const registerUser = async (req, res) => {
         });
 
         if (user) {
+            // Mengirimkan email notifikasi berhasil membuat akun
+            const loginUrl = `http://localhost:5173/`;
+            const message = `Halo ${nama_lengkap},\n\nAkun Anda untuk sistem Nicky Frozen POS telah berhasil dibuat dengan role ${role}.\n\nUsername: ${username}\nEmail: ${email.toLowerCase()}\nPassword: ${password}\n\nSilakan login melalui tautan berikut: ${loginUrl}\n\nHarap segera ubah password Anda setelah berhasil login demi keamanan akun Anda.`;
+            const htmlMessage = `
+                <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
+                    <h2>Selamat Datang di Nicky Frozen POS!</h2>
+                    <p>Halo <strong>${nama_lengkap}</strong>,</p>
+                    <p>Akun Anda telah berhasil dibuat oleh Owner/Admin dengan role <strong>${role}</strong>.</p>
+                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <p style="margin: 0;"><strong>Username:</strong> ${username}</p>
+                        <p style="margin: 5px 0;"><strong>Email:</strong> ${email.toLowerCase()}</p>
+                        <p style="margin: 0;"><strong>Password Sementara:</strong> ${password}</p>
+                    </div>
+                    <p>Silakan gunakan informasi di atas untuk login ke dalam sistem:</p>
+                    <a href="${loginUrl}" style="display:inline-block;padding:10px 20px;color:#fff;background-color:#06b6d4;border-radius:5px;text-decoration:none;margin-bottom:15px;">Login Sekarang</a>
+                    <p style="font-size: 0.9em; color: #dc2626;"><strong>Penting:</strong> Harap segera ubah password Anda setelah berhasil login demi keamanan akun Anda.</p>
+                    <p>Terima kasih.</p>
+                </div>
+            `;
+
+            try {
+                await sendEmail({
+                    email: user.email,
+                    subject: "Akun Berhasil Dibuat - Nicky Frozen POS",
+                    message,
+                    htmlMessage
+                });
+            } catch (err) {
+                console.error("Gagal mengirim email notifikasi akun baru:", err);
+                // Email gagal tidak membatalkan pembuatan user
+            }
+
             res.status(201).json({
                 _id: user._id,
                 nama_lengkap: user.nama_lengkap,

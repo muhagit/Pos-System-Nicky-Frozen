@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema(
         },
         cabang: { type: String, required: true },
         status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+        resetPasswordToken: String,
+        resetPasswordExpire: Date,
     },
     { timestamps: true },
 );

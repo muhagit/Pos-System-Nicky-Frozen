@@ -33,7 +33,6 @@ function App() {
                     1. RUTE UTAMA (ROOT)
                 ========================================= */}
                 <Route path="/" element={<LoginPage />} />
-                <Route path="/" element={<LoginPage />} />
                 {/* =========================================
                     2. RUTE OWNER
                 ========================================= */}
