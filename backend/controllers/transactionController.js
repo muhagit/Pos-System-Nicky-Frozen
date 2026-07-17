@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Transaction from "../models/Transaction.js";
 import Product from "../models/Product.js";
 import StockTransferLog from "../models/StockTransferLog.js";
@@ -271,6 +272,11 @@ export const getHoldTransactions = async (req, res) => {
 export const deleteTransaction = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: "ID Transaksi tidak valid" });
+        }
+
         const trx = await Transaction.findById(id);
 
         if (!trx) {
@@ -279,14 +285,23 @@ export const deleteTransaction = async (req, res) => {
                 .json({ message: "Transaksi tidak ditemukan" });
         }
 
-        // Jika transaksi ini adalah Hold, kembalikan stok produknya ke rak
-        if (trx.is_hold) {
-            for (const item of trx.detail_transaksi) {
-                const product = await Product.findById(item.produk_id);
-                if (product) {
-                    product.stok_saat_ini += item.kuantitas;
-                    await product.save();
-                }
+        // Otorisasi: Kasir/Admin hanya bisa menghapus transaksi di cabang mereka sendiri
+        if (req.user.role === "Admin" || req.user.role === "Kasir") {
+            if (trx.cabang !== req.user.cabang) {
+                return res.status(403).json({
+                    message: "Akses Ditolak: Anda tidak memiliki akses ke transaksi cabang lain",
+                });
+            }
+        }
+
+        // Kembalikan stok produknya ke rak
+        for (const item of trx.detail_transaksi) {
+            const product = await Product.findById(item.produk_id);
+            if (product) {
+                const currentBranchStock = product.stok_cabang ? (product.stok_cabang.get(trx.cabang) || 0) : 0;
+                product.stok_cabang.set(trx.cabang, currentBranchStock + item.kuantitas);
+                product.stok_saat_ini = Array.from(product.stok_cabang.values()).reduce((a, b) => a + b, 0);
+                await product.save();
             }
         }
 
@@ -667,6 +682,15 @@ export const finalizeTransaction = async (req, res) => {
             return res
                 .status(404)
                 .json({ message: "Transaksi tidak ditemukan" });
+        }
+
+        // Otorisasi: Kasir/Admin hanya bisa memfinalisasi transaksi di cabang mereka sendiri
+        if (req.user.role === "Admin" || req.user.role === "Kasir") {
+            if (trx.cabang !== req.user.cabang) {
+                return res.status(403).json({
+                    message: "Akses Ditolak: Anda tidak diizinkan memfinalisasi transaksi cabang lain",
+                });
+            }
         }
 
         if (trx.is_hold) {

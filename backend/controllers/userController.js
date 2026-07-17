@@ -109,6 +109,11 @@ export const deleteUser = async (req, res) => {
         const user = await User.findById(req.params.id);
 
         if (user) {
+            if (req.user.role === "Admin" && user.role === "Owner") {
+                return res.status(403).json({
+                    message: "Akses Ditolak: Admin tidak diizinkan menghapus akun Owner",
+                });
+            }
             await User.findByIdAndDelete(req.params.id);
             res.json({ message: "User berhasil dihapus" });
         } else {
@@ -130,6 +135,16 @@ export const updateUser = async (req, res) => {
         const user = await User.findById(req.params.id);
 
         if (user) {
+            if (req.user.role === "Admin" && user.role === "Owner") {
+                return res.status(403).json({
+                    message: "Akses Ditolak: Admin tidak diizinkan mengubah akun Owner",
+                });
+            }
+            if (req.user.role === "Admin" && req.body.role === "Owner") {
+                return res.status(403).json({
+                    message: "Akses Ditolak: Admin tidak diizinkan memberikan role Owner",
+                });
+            }
             // Sesuaikan nama field dengan schema database Anda
             user.nama_lengkap = req.body.nama_lengkap || user.nama_lengkap;
             user.username = req.body.username || user.username;
@@ -189,6 +204,12 @@ export const registerUser = async (req, res) => {
     try {
         const { nama_lengkap, username, email, password, role, cabang, status } =
             req.body;
+
+        if (req.user.role === "Admin" && role === "Owner") {
+            return res.status(403).json({
+                message: "Akses Ditolak: Admin tidak diizinkan membuat akun Owner",
+            });
+        }
 
         // Cek apakah username sudah dipakai di database
         const userExists = await User.findOne({ username });

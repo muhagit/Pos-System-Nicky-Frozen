@@ -45,6 +45,6 @@ router.get(
     getNotifications,
 );
 
-router.delete("/:id", protect, authorize("Kasir"), deleteTransaction)
+router.delete("/:id", protect, authorize("Owner", "Admin", "Kasir"), deleteTransaction)
 
 export default router;

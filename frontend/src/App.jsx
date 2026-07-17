@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "./pages/auth/LoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 import KasirPage from "./pages/kasir/KasirPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLayout from "./layouts/AdminLayout";
@@ -36,7 +37,7 @@ function App() {
                 {/* =========================================
                     2. RUTE OWNER
                 ========================================= */}
-                <Route path="/owner" element={<OwnerLayout />}>
+                <Route path="/owner" element={<ProtectedRoute allowedRoles={["Owner"]}><OwnerLayout /></ProtectedRoute>}>
                     <Route index element={<DashboardOwner />} />
                     <Route path="users" element={<UserManagement />} />
                     <Route path="analytics" element={<Analytics />} />
@@ -52,7 +53,7 @@ function App() {
                     3. RUTE ADMIN (Nested Routing)
                 ========================================= */}
                 {/* Perhatikan bahwa tag Route ini memiliki tag penutup </Route> */}
-                <Route path="/admin" element={<AdminLayout />}>
+                <Route path="/admin" element={<ProtectedRoute allowedRoles={["Admin"]}><AdminLayout /></ProtectedRoute>}>
                     {/* Index route ini sekarang berada DI DALAM AdminLayout */}
                     <Route index element={<AdminDashboard />} />
                     <Route path="products" element={<AdminProducts />} />{" "}
@@ -66,7 +67,7 @@ function App() {
                 {/* =========================================
                     4. RUTE KASIR (Nested Routing)
                 ========================================= */}
-                <Route element={<KasirLayout />}>
+                <Route element={<ProtectedRoute allowedRoles={["Kasir"]}><KasirLayout /></ProtectedRoute>}>
                     <Route path="/kasir" element={<KasirPage />} />
                     <Route path="/history" element={<HistoryPage />} />
                     <Route path="/hold" element={<HoldPage />} />
