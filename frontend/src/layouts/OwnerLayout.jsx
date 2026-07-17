@@ -108,7 +108,7 @@ useEffect(() => {
               </p>
 
               <p className="text-xs text-primary capitalize">
-                {userInfo?.role ?? "owner"}
+                {userInfo?.role ?? "owner"} ({userInfo?.cabang ?? "Pusat"})
               </p>
             </div>
 

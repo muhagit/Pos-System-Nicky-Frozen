@@ -45,7 +45,7 @@ const AdminLayout = () => {
                                 {userInfo?.nama_lengkap || "Admin User"}
                             </h3>
                             <p className="text-sm text-gray-300">
-                                {userInfo?.role || "Admin"}
+                                {userInfo?.role || "Admin"} ({userInfo?.cabang || "Pusat"})
                             </p>
                         </div>
                     </div>
