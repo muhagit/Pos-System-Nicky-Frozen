@@ -109,6 +109,11 @@ export const deleteUser = async (req, res) => {
         const user = await User.findById(req.params.id);
 
         if (user) {
+            if (req.params.id === req.user._id.toString()) {
+                return res.status(400).json({
+                    message: "Akses Ditolak: Anda tidak diizinkan menghapus akun Anda sendiri",
+                });
+            }
             if (req.user.role === "Admin" && user.role === "Owner") {
                 return res.status(403).json({
                     message: "Akses Ditolak: Admin tidak diizinkan menghapus akun Owner",
