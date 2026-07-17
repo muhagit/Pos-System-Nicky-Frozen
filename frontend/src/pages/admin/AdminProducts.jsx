@@ -32,6 +32,7 @@ const AdminProducts = () => {
     const [categories, setCategories] = useState([]);
     const [formData, setFormData] = useState({
         nama_produk: "",
+        sku: "",
         kategori: "Nugget",
         harga: "",
         stok_saat_ini: "",
@@ -138,6 +139,7 @@ const AdminProducts = () => {
         // 1. Buat FormData karena kita mengirim File
         const submitData = new FormData();
         submitData.append("nama_produk", formData.nama_produk);
+        submitData.append("sku", formData.sku);
         submitData.append("kategori", formData.kategori);
         submitData.append("harga", formData.harga);
         submitData.append("stok_saat_ini", formData.stok_saat_ini);
@@ -192,6 +194,7 @@ const AdminProducts = () => {
             setCurrentId(product._id);
             setFormData({
                 nama_produk: product.nama_produk,
+                sku: product.sku || "",
                 kategori: product.kategori,
                 harga: product.harga,
                 stok_saat_ini: product.stok_saat_ini,
@@ -205,6 +208,7 @@ const AdminProducts = () => {
             setCurrentId(null);
             setFormData({
                 nama_produk: "",
+                sku: "",
                 kategori: categories[0]?.nama_kategori || "",
                 harga: "",
                 stok_saat_ini: "",
@@ -326,7 +330,7 @@ const AdminProducts = () => {
                                 </tr>
                             ) : (
                                 currentProducts.map((product) => {
-                                    const sku = `FRZ-${product._id.substring(18, 24).toUpperCase()}`;
+                                    const sku = product.sku || `FRZ-${product._id.substring(18, 24).toUpperCase()}`;
                                     const isCritical =
                                         product.stok_saat_ini <= 0;
                                     const isLow =
@@ -495,6 +499,24 @@ const AdminProducts = () => {
                                         setFormData({
                                             ...formData,
                                             nama_produk: e.target.value,
+                                        })
+                                    }
+                                    className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:border-primary"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                                    SKU Code
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="E.g. FRZ-CHKN01"
+                                    value={formData.sku}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            sku: e.target.value,
                                         })
                                     }
                                     className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:border-primary"

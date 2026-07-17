@@ -8,6 +8,7 @@ export const createProduct = async (req, res) => {
     try {
         const {
             nama_produk,
+            sku,
             kategori,
             harga,
             stok_saat_ini,
@@ -57,6 +58,7 @@ export const createProduct = async (req, res) => {
 
         const product = await Product.create({
             nama_produk,
+            sku: sku || "",
             kategori,
             harga,
             stok_saat_ini: calculatedStok,
@@ -87,7 +89,10 @@ export const getProducts = async (req, res) => {
 
         // Filter berdasarkan nama produk (case-insensitive)
         if (search) {
-            query.nama_produk = { $regex: search, $options: "i" };
+            query.$or = [
+                { nama_produk: { $regex: search, $options: "i" } },
+                { sku: { $regex: search, $options: "i" } }
+            ];
         }
 
         // Filter berdasarkan kategori yang dipilih
@@ -152,6 +157,7 @@ export const updateProduct = async (req, res) => {
     try {
         const {
             nama_produk,
+            sku,
             kategori,
             harga,
             stok_saat_ini,
@@ -177,6 +183,7 @@ export const updateProduct = async (req, res) => {
 
             // Perbarui teks datanya
             product.nama_produk = nama_produk || product.nama_produk;
+            product.sku = sku !== undefined ? sku : product.sku;
             product.kategori = kategori || product.kategori;
             product.harga = harga || product.harga;
             if (req.user && req.user.role === "Admin") {
