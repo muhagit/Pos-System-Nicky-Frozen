@@ -312,6 +312,24 @@ export const getReport = async (req, res) => {
             query.cabang = req.query.cabang;
             allQuery.cabang = req.query.cabang;
         }
+
+        // Filter range tanggal (createdAt)
+        if (req.query.startDate || req.query.endDate) {
+            query.createdAt = {};
+            allQuery.createdAt = {};
+            if (req.query.startDate) {
+                const start = new Date(req.query.startDate);
+                start.setHours(0, 0, 0, 0);
+                query.createdAt.$gte = start;
+                allQuery.createdAt.$gte = start;
+            }
+            if (req.query.endDate) {
+                const end = new Date(req.query.endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+                allQuery.createdAt.$lte = end;
+            }
+        }
         
         const [transactions, totalAll] = await Promise.all([
             Transaction.find(query).populate("user_id", "nama_lengkap").sort({ createdAt: -1 }),
@@ -375,37 +393,87 @@ export const getReport = async (req, res) => {
         const conversionRate = totalAll > 0 ? Math.round((totalTransactions / totalAll) * 100) : 100;
         const customers = Math.ceil(totalTransactions * 0.95);
 
-        // 7-day revenue trend data
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+        // Dynamic revenue trend data
+        let startTrend = new Date();
+        startTrend.setDate(startTrend.getDate() - 6);
+        startTrend.setHours(0, 0, 0, 0);
 
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
+        let endTrend = new Date();
+        endTrend.setDate(endTrend.getDate() + 1);
+        endTrend.setHours(0, 0, 0, 0);
 
-        const trx7Days = await Transaction.find({
-            ...query,
-            createdAt: { $gte: sevenDaysAgo, $lt: tomorrow }
-        });
-
-        const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-        const trendMap = {};
-
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(sevenDaysAgo);
-            d.setDate(d.getDate() + i);
-            const dayName = days[d.getDay()];
-            trendMap[dayName] = { hari: dayName, revenue: 0, orders: 0 };
+        if (req.query.startDate) {
+            startTrend = new Date(req.query.startDate);
+            startTrend.setHours(0, 0, 0, 0);
+        }
+        if (req.query.endDate) {
+            endTrend = new Date(req.query.endDate);
+            endTrend.setHours(23, 59, 59, 999);
         }
 
-        trx7Days.forEach((t) => {
-            const dayName = days[t.createdAt.getDay()];
-            if (trendMap[dayName]) {
-                trendMap[dayName].revenue += t.total_pembayaran;
-                trendMap[dayName].orders += 1;
-            }
+        const trxTrend = await Transaction.find({
+            ...query,
+            createdAt: { $gte: startTrend, $lte: endTrend }
         });
+
+        // Hitung selisih hari
+        const diffTime = Math.abs(endTrend - startTrend);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        const trendMap = {};
+        if (diffDays <= 1) {
+            // Group by hour untuk filter 1 hari
+            for (let i = 0; i < 24; i++) {
+                const hourStr = `${String(i).padStart(2, '0')}:00`;
+                trendMap[hourStr] = { hari: hourStr, revenue: 0, orders: 0 };
+            }
+            trxTrend.forEach((t) => {
+                const hour = t.createdAt.getHours();
+                const hourStr = `${String(hour).padStart(2, '0')}:00`;
+                if (trendMap[hourStr]) {
+                    trendMap[hourStr].revenue += t.total_pembayaran;
+                    trendMap[hourStr].orders += 1;
+                }
+            });
+        } else if (diffDays <= 31) {
+            // Group by day untuk filter <= 31 hari
+            const daysShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+            for (let i = 0; i < diffDays; i++) {
+                const d = new Date(startTrend);
+                d.setDate(d.getDate() + i);
+                const label = diffDays <= 7 
+                    ? daysShort[d.getDay()] 
+                    : `${d.getDate()}/${d.getMonth() + 1}`;
+                trendMap[label] = { hari: label, revenue: 0, orders: 0 };
+            }
+            trxTrend.forEach((t) => {
+                const label = diffDays <= 7 
+                    ? daysShort[t.createdAt.getDay()] 
+                    : `${t.createdAt.getDate()}/${t.createdAt.getMonth() + 1}`;
+                if (trendMap[label]) {
+                    trendMap[label].revenue += t.total_pembayaran;
+                    trendMap[label].orders += 1;
+                }
+            });
+        } else {
+            // Group by week untuk filter > 31 hari
+            const weeksCount = Math.min(10, Math.ceil(diffDays / 7));
+            for (let i = 1; i <= weeksCount; i++) {
+                const label = `Minggu ${i}`;
+                trendMap[label] = { hari: label, revenue: 0, orders: 0 };
+            }
+            trxTrend.forEach((t) => {
+                const diffTimeTrx = Math.abs(t.createdAt - startTrend);
+                const diffDaysTrx = Math.floor(diffTimeTrx / (1000 * 60 * 60 * 24));
+                const weekIndex = Math.min(weeksCount, Math.floor(diffDaysTrx / 7) + 1);
+                const label = `Minggu ${weekIndex}`;
+                if (trendMap[label]) {
+                    trendMap[label].revenue += t.total_pembayaran;
+                    trendMap[label].orders += 1;
+                }
+            });
+        }
+
         const trendData = Object.values(trendMap);
 
         res.json({

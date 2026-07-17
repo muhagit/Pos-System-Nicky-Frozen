@@ -248,7 +248,8 @@ const KasirPage = () => {
 
     const handleStartShift = async () => {
         if (shiftName === "Shift 1") {
-            const modalValue = Number(modalAwalInput);
+            const rawValue = modalAwalInput.replace(/\./g, "");
+            const modalValue = Number(rawValue);
             if (!modalAwalInput || isNaN(modalValue) || modalValue < 0) {
                 Swal.fire("Peringatan", "Masukkan nominal modal awal yang valid!", "warning");
                 return;
@@ -258,7 +259,7 @@ const KasirPage = () => {
         try {
             const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
             const payload = { shift: shiftName };
-            if (shiftName === "Shift 1") payload.modal_awal = Number(modalAwalInput);
+            if (shiftName === "Shift 1") payload.modal_awal = Number(modalAwalInput.replace(/\./g, ""));
 
             const { data } = await API.post("/reports/start-shift", payload, config);
             setActiveShift(data.record);
@@ -651,11 +652,10 @@ const KasirPage = () => {
                         Uang Diterima (Rp)
                     </label>
                     <input
-                        type="number"
+                        type="text"
                         id="cash-received-input"
                         class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-md font-bold focus:border-primary focus:bg-white transition"
                         placeholder="Masukkan uang yang diterima..."
-                        min="${total}"
                     />
                     
                     <div class="flex flex-wrap gap-2 mt-2">
@@ -730,26 +730,27 @@ const KasirPage = () => {
                 };
 
                 input.addEventListener("input", (e) => {
-                    updateTotalChange(e.target.value);
+                    const raw = e.target.value.replace(/\D/g, "");
+                    const formatted = raw ? Number(raw).toLocaleString("id-ID") : "";
+                    e.target.value = formatted;
+                    updateTotalChange(raw);
                 });
 
                 const shortcutBtns = Swal.getHtmlContainer().querySelectorAll(".cash-shortcut-btn");
                 shortcutBtns.forEach(btn => {
                     btn.addEventListener("click", () => {
                         const val = Number(btn.getAttribute("data-val"));
-                        if (val === total) {
-                            input.value = total;
-                        } else {
-                            input.value = val;
-                        }
-                        updateTotalChange(input.value);
+                        const raw = String(val);
+                        input.value = val.toLocaleString("id-ID");
+                        updateTotalChange(raw);
                     });
                 });
             },
             preConfirm: () => {
                 if (isCash) {
                     const inputVal = Swal.getHtmlContainer().querySelector("#cash-received-input").value;
-                    const received = Number(inputVal) || 0;
+                    const rawVal = inputVal.replace(/\./g, "");
+                    const received = Number(rawVal) || 0;
                     if (received < total) {
                         Swal.showValidationMessage("Uang diterima tidak boleh kurang dari total bayar!");
                         return false;
@@ -1349,10 +1350,14 @@ const KasirPage = () => {
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">Rp</span>
                                         <input
-                                            type="number"
-                                            placeholder="Contoh: 150000"
+                                            type="text"
+                                            placeholder="Contoh: 150.000"
                                             value={modalAwalInput}
-                                            onChange={(e) => setModalAwalInput(e.target.value)}
+                                            onChange={(e) => {
+                                                const raw = e.target.value.replace(/\D/g, "");
+                                                const formatted = raw ? Number(raw).toLocaleString("id-ID") : "";
+                                                setModalAwalInput(formatted);
+                                            }}
                                             className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm font-semibold focus:border-primary focus:bg-white transition"
                                         />
                                     </div>

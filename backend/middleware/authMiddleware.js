@@ -20,6 +20,18 @@ export const protect = async (req, res, next) => {
             // Cari user di database berdasarkan ID dari token, TANPA mengambil password-nya
             req.user = await User.findById(decoded.id).select("-password");
 
+            if (!req.user) {
+                return res.status(401).json({
+                    message: "Tidak memiliki otorisasi, user tidak ditemukan",
+                });
+            }
+
+            if (req.user.status === "Inactive") {
+                return res.status(401).json({
+                    message: "Akun Anda telah dinonaktifkan, silakan hubungi owner",
+                });
+            }
+
             // Lanjut ke proses controller selanjutnya
             next();
         } catch (error) {

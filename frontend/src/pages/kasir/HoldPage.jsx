@@ -1,13 +1,42 @@
 import { useEffect, useState } from "react";
 import API from "../../services/api"; // Menggunakan instance API axios yang sama dengan kasir
 import Swal from "sweetalert2";
-import { FiClock, FiEye, FiTrash2 } from "react-icons/fi";
+import { FiClock, FiEye, FiTrash2, FiSearch, FiArrowUp, FiArrowDown } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 const HoldPage = () => {
     const navigate = useNavigate();
     const [holdTransactions, setHoldTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [sortBy, setSortBy] = useState("time"); // "time" or "amount"
+    const [sortDirection, setSortDirection] = useState("desc"); // "asc" or "desc"
+
+    // Filter transactions by customer name or Order ID/invoice
+    const filteredTransactions = holdTransactions.filter((trx) => {
+        const nameMatch = (trx.customer_name || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const idMatch = (trx.order_id || "").toLowerCase().includes(searchQuery.toLowerCase());
+        const invoiceMatch = (trx.invoice || "").toLowerCase().includes(searchQuery.toLowerCase());
+        return nameMatch || idMatch || invoiceMatch;
+    });
+
+    // Sort transactions by time or amount
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        let valA, valB;
+        if (sortBy === "time") {
+            valA = new Date(a.createdAt).getTime();
+            valB = new Date(b.createdAt).getTime();
+        } else {
+            valA = a.total_pembayaran || 0;
+            valB = b.total_pembayaran || 0;
+        }
+
+        if (sortDirection === "asc") {
+            return valA - valB;
+        } else {
+            return valB - valA;
+        }
+    });
 
     // Ambil token kasir dari localStorage
     const userInfo = JSON.parse(localStorage.getItem("userInfo"));
@@ -198,91 +227,143 @@ const HoldPage = () => {
                     📭 No hold transactions available.
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-                    {holdTransactions.map((hold) => (
-                        <div
-                            key={hold._id}
-                            className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between"
-                        >
-                            {/* TOP */}
-                            <div className="flex items-center justify-between">
-                                <div className="bg-yellow-100 text-yellow-600 p-4 rounded-2xl">
-                                    <FiClock size={24} />
-                                </div>
-                                <span className="bg-yellow-100 text-yellow-600 px-4 py-2 rounded-xl text-sm font-semibold">
-                                    HOLD
-                                </span>
-                            </div>
-
-                            {/* CONTENT */}
-                            <div className="mt-6">
-                                <h2 className="text-xl font-bold text-text truncate" title={hold.customer_name || "Tanpa Nama"}>
-                                    {hold.customer_name || "Tanpa Nama"}
-                                </h2>
-                                <p className="text-text-secondary mt-1 text-xs font-mono">
-                                    ID: {hold.order_id || "No Order ID"}
-                                </p>
-                                <p className="text-text-secondary mt-1 text-sm">
-                                    Kasir: {hold.kasir || "Tidak Diketahui"}
-                                </p>
-                            </div>
-
-                            {/* INFO */}
-                            <div className="space-y-3 mt-6 border-t border-b border-gray-50 py-4">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-text-secondary">
-                                        Date
-                                    </span>
-                                    <span className="font-medium text-text">
-                                        {hold.createdAt
-                                            ? new Date(
-                                                  hold.createdAt,
-                                              ).toLocaleString("id-ID")
-                                            : new Date().toLocaleDateString(
-                                                  "id-ID",
-                                              )}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-text-secondary">
-                                        Cabang
-                                    </span>
-                                    <span className="font-medium text-text">
-                                        {hold.cabang}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center pt-2">
-                                    <span className="text-text-secondary text-sm">
-                                        Total
-                                    </span>
-                                    <span className="font-bold text-xl text-primary">
-                                        Rp{" "}
-                                        {(
-                                            hold.total_pembayaran || 0
-                                        ).toLocaleString("id-ID")}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* ACTION */}
-                            <div className="flex gap-3 mt-6">
+                <>
+                    {/* FILTER & SORT BAR */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 w-full">
+                        {/* SEARCH BAR */}
+                        <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3 w-full md:w-[320px] shadow-sm border border-gray-100">
+                            <FiSearch className="text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Cari nama pelanggan atau Order ID..."
+                                className="outline-none w-full text-sm font-medium"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
                                 <button
-                                    onClick={() => handleConfirmOpenHold(hold)}
-                                    className="flex-1 bg-primary text-white py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-primary-dark transition font-semibold text-sm"
+                                    onClick={() => setSearchQuery("")}
+                                    className="text-gray-400 hover:text-gray-600 text-xs font-bold border-none bg-transparent cursor-pointer"
                                 >
-                                    <FiEye />
-                                    Open
+                                    ✕
                                 </button>
-                                <button
-                                    onClick={() => handleDeleteHold(hold._id)}
-                                    className="bg-red-50 text-red-500 px-5 rounded-2xl hover:bg-red-100 transition flex items-center justify-center"
-                                >
-                                    <FiTrash2 size={18} />
-                                </button>
-                            </div>
+                            )}
                         </div>
-                    ))}
-                </div>
+
+                        {/* SORTING CONTROLS */}
+                        <div className="flex items-center gap-2 bg-white rounded-2xl px-4 py-2 shadow-sm border border-gray-100 self-start md:self-auto">
+                            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Urutkan:</span>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="outline-none border-none text-sm text-gray-700 font-medium bg-transparent cursor-pointer"
+                            >
+                                <option value="time">Waktu (Date)</option>
+                                <option value="amount">Nominal (Total)</option>
+                            </select>
+                            
+                            <button
+                                onClick={() => setSortDirection(prev => prev === "asc" ? "desc" : "asc")}
+                                className="p-2 hover:bg-gray-50 rounded-xl transition text-gray-500 hover:text-primary cursor-pointer border-none bg-transparent flex items-center justify-center"
+                                title={sortDirection === "asc" ? "Ascending (Terkecil/Terlama)" : "Descending (Terbesar/Terbaru)"}
+                            >
+                                {sortDirection === "asc" ? <FiArrowUp size={18} /> : <FiArrowDown size={18} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {sortedTransactions.length === 0 ? (
+                        <div className="mt-6 bg-white p-8 rounded-3xl text-center text-text-secondary shadow-sm">
+                            🔍 Tidak ada hasil pencarian yang cocok.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                            {sortedTransactions.map((hold) => (
+                                <div
+                                    key={hold._id}
+                                    className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between"
+                                >
+                                    {/* TOP */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="bg-yellow-100 text-yellow-600 p-4 rounded-2xl">
+                                            <FiClock size={24} />
+                                        </div>
+                                        <span className="bg-yellow-100 text-yellow-600 px-4 py-2 rounded-xl text-sm font-semibold">
+                                            HOLD
+                                        </span>
+                                    </div>
+
+                                    {/* CONTENT */}
+                                    <div className="mt-6">
+                                        <h2 className="text-xl font-bold text-text truncate" title={hold.customer_name || "Tanpa Nama"}>
+                                            {hold.customer_name || "Tanpa Nama"}
+                                        </h2>
+                                        <p className="text-text-secondary mt-1 text-xs font-mono">
+                                            ID: {hold.order_id || "No Order ID"}
+                                        </p>
+                                        <p className="text-text-secondary mt-1 text-sm">
+                                            Kasir: {hold.kasir || "Tidak Diketahui"}
+                                        </p>
+                                    </div>
+
+                                    {/* INFO */}
+                                    <div className="space-y-3 mt-6 border-t border-b border-gray-50 py-4">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-text-secondary">
+                                                Date
+                                            </span>
+                                            <span className="font-medium text-text">
+                                                {hold.createdAt
+                                                    ? new Date(
+                                                          hold.createdAt,
+                                                      ).toLocaleString("id-ID")
+                                                    : new Date().toLocaleDateString(
+                                                          "id-ID",
+                                                      )}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-text-secondary">
+                                                Cabang
+                                            </span>
+                                            <span className="font-medium text-text">
+                                                {hold.cabang}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2">
+                                            <span className="text-text-secondary text-sm">
+                                                Total
+                                            </span>
+                                            <span className="font-bold text-xl text-primary">
+                                                Rp{" "}
+                                                {(
+                                                    hold.total_pembayaran || 0
+                                                ).toLocaleString("id-ID")}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* ACTION */}
+                                    <div className="flex gap-3 mt-6">
+                                        <button
+                                            onClick={() => handleConfirmOpenHold(hold)}
+                                            className="flex-1 bg-primary text-white py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-primary-dark transition font-semibold text-sm"
+                                        >
+                                            <FiEye />
+                                            Open
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteHold(hold._id)}
+                                            className="bg-red-50 text-red-500 px-5 rounded-2xl hover:bg-red-100 transition flex items-center justify-center"
+                                        >
+                                            <FiTrash2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

@@ -220,9 +220,25 @@ export const getReports = async (req, res) => {
         } else if (req.query.cabang) {
             query.cabang = req.query.cabang;
         }
+
+        // Filter range tanggal_laporan
+        if (req.query.startDate || req.query.endDate) {
+            query.tanggal_laporan = {};
+            if (req.query.startDate) {
+                const start = new Date(req.query.startDate);
+                start.setHours(0, 0, 0, 0);
+                query.tanggal_laporan.$gte = start;
+            }
+            if (req.query.endDate) {
+                const end = new Date(req.query.endDate);
+                end.setHours(23, 59, 59, 999);
+                query.tanggal_laporan.$lte = end;
+            }
+        }
+
         const reports = await DailyReport.find(query)
             .populate("diperiksa_oleh", "nama_lengkap role")
-            .sort({ createdAt: -1 });
+            .sort({ tanggal_laporan: -1 });
         res.status(200).json(reports);
     } catch (error) {
         res.status(500).json({

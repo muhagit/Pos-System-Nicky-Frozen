@@ -12,21 +12,40 @@ export const getOwnerDashboard = async (req, res) => {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
+        let start = null;
+        let end = null;
+        let isFiltered = false;
 
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+        const query = { is_hold: false };
+
+        if (req.query.startDate || req.query.endDate) {
+            isFiltered = true;
+            query.createdAt = {};
+            if (req.query.startDate) {
+                start = new Date(req.query.startDate);
+                start.setHours(0, 0, 0, 0);
+                query.createdAt.$gte = start;
+            }
+            if (req.query.endDate) {
+                end = new Date(req.query.endDate);
+                end.setHours(23, 59, 59, 999);
+                query.createdAt.$lte = end;
+            }
+        }
 
         // 1. AMBIL DATA TRANSAKSI
-        const trxToday = await Transaction.find({
-            createdAt: { $gte: today, $lt: tomorrow },
-            is_hold: false,
-        });
-        const trxYesterday = await Transaction.find({
-            createdAt: { $gte: yesterday, $lt: today },
-            is_hold: false,
-        });
+        const trxToday = await Transaction.find(query);
+        
+        let trxYesterday = [];
+        if (isFiltered && start && end) {
+            const duration = end - start;
+            const prevStart = new Date(start.getTime() - duration);
+            const prevEnd = new Date(start.getTime());
+            trxYesterday = await Transaction.find({
+                createdAt: { $gte: prevStart, $lt: prevEnd },
+                is_hold: false,
+            });
+        }
 
         // 2. KALKULASI STATS CARD
         const penjualanHariIni = trxToday.reduce(
@@ -76,9 +95,13 @@ export const getOwnerDashboard = async (req, res) => {
         // 4. RINGKASAN CABANG (Group by Cabang)
         const activeBranches = await Branch.find({ isActive: true });
         const branchesList = activeBranches.map(b => b.name);
-        const reportsToday = await DailyReport.find({
-            createdAt: { $gte: today, $lt: tomorrow }
-        });
+        
+        const reportQuery = {};
+        if (isFiltered && start && end) {
+            reportQuery.tanggal_laporan = { $gte: start, $lt: end };
+        }
+        const reportsToday = await DailyReport.find(reportQuery);
+
         const cabang = [];
         for (const name of branchesList) {
             const branchTrxToday = trxToday.filter(t => t.cabang === name);
@@ -95,10 +118,14 @@ export const getOwnerDashboard = async (req, res) => {
             const lastTrx = await Transaction.findOne({ cabang: name }).sort({ createdAt: -1 });
             const lastSync = lastTrx ? lastTrx.createdAt : null;
 
-            const shiftsToday = await ShiftRecord.find({
-                cabang: name,
-                tanggal: new Date().toISOString().slice(0, 10)
-            });
+            const shiftQuery = { cabang: name };
+            if (isFiltered && start && end) {
+                shiftQuery.tanggal = {
+                    $gte: start.toISOString().slice(0, 10),
+                    $lte: end.toISOString().slice(0, 10)
+                };
+            }
+            const shiftsToday = await ShiftRecord.find(shiftQuery);
             const modalAwal = shiftsToday.reduce((sum, s) => sum + (s.modal_awal || 0), 0);
             const cashToday = branchTrxToday
                 .filter(t => t.metode_pembayaran === "Cash")
@@ -117,47 +144,119 @@ export const getOwnerDashboard = async (req, res) => {
             });
         }
 
-        // 5. DATA CHART KATEGORI (Metode Pembayaran Hari Ini)
-        const metodeMap = { Cash: 0, QRIS: 0, Transfer: 0, Card: 0 };
+        // 5. DATA CHART KATEGORI (Metode Pembayaran - Cash vs E-Money)
+        const metodeMap = { Cash: 0, "E-Money": 0 };
         trxToday.forEach((t) => {
-            if (metodeMap[t.metode_pembayaran] !== undefined) {
-                metodeMap[t.metode_pembayaran] += t.total_pembayaran;
+            if (t.metode_pembayaran === "Cash") {
+                metodeMap["Cash"] += t.total_pembayaran;
+            } else {
+                metodeMap["E-Money"] += t.total_pembayaran;
             }
         });
         const categoryData = Object.keys(metodeMap)
             .map((key) => ({ metode: key, jumlah: metodeMap[key] }))
-            .filter((item) => item.jumlah > 0); // Hanya tampilkan metode yang ada transaksinya
+            .filter((item) => item.jumlah > 0);
 
-        // 6. DATA CHART REVENUE (7 Hari Terakhir)
-        const trx7Days = await Transaction.find({
-            createdAt: { $gte: sevenDaysAgo, $lt: tomorrow },
-            is_hold: false,
-        });
+        // 6. DATA CHART REVENUE (Tren Berdasarkan Filter)
         const allBranches = await Branch.find({});
-        const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-        const revenueMap = {};
 
-        // Inisialisasi struktur 7 hari
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(sevenDaysAgo);
-            d.setDate(d.getDate() + i);
-            const dayName = days[d.getDay()];
-            revenueMap[dayName] = { hari: dayName };
-            allBranches.forEach(b => {
-                revenueMap[dayName][b.name] = 0;
-            });
+        let startTrend = new Date();
+        startTrend.setDate(startTrend.getDate() - 6);
+        startTrend.setHours(0, 0, 0, 0);
+
+        let endTrend = new Date();
+        endTrend.setDate(endTrend.getDate() + 1);
+        endTrend.setHours(0, 0, 0, 0);
+
+        if (isFiltered) {
+            if (start) startTrend = new Date(start);
+            if (end) endTrend = new Date(end);
+        } else {
+            const oldestTrx = await Transaction.findOne({ is_hold: false }).sort({ createdAt: 1 });
+            if (oldestTrx) {
+                startTrend = new Date(oldestTrx.createdAt);
+                startTrend.setHours(0, 0, 0, 0);
+            }
         }
 
-        trx7Days.forEach((t) => {
-            const dayName = days[t.createdAt.getDay()];
-            if (revenueMap[dayName] && t.cabang) {
-                if (revenueMap[dayName][t.cabang] !== undefined) {
-                    revenueMap[dayName][t.cabang] += t.total_pembayaran;
-                } else {
-                    revenueMap[dayName][t.cabang] = t.total_pembayaran;
+        const diffTime = Math.abs(endTrend - startTrend);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+
+        const revenueMap = {};
+
+        if (diffDays <= 1) {
+            // Group by hour
+            for (let i = 0; i < 24; i++) {
+                const hourStr = `${String(i).padStart(2, '0')}:00`;
+                revenueMap[hourStr] = { hari: hourStr };
+                allBranches.forEach(b => {
+                    revenueMap[hourStr][b.name] = 0;
+                });
+            }
+            trxToday.forEach((t) => {
+                const hour = t.createdAt.getHours();
+                const hourStr = `${String(hour).padStart(2, '0')}:00`;
+                if (revenueMap[hourStr] && t.cabang) {
+                    revenueMap[hourStr][t.cabang] += t.total_pembayaran;
+                }
+            });
+        } else if (diffDays <= 31) {
+            // Group by day
+            const daysShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+            for (let i = 0; i < diffDays; i++) {
+                const d = new Date(startTrend);
+                d.setDate(d.getDate() + i);
+                const label = diffDays <= 7 
+                    ? daysShort[d.getDay()] 
+                    : `${d.getDate()}/${d.getMonth() + 1}`;
+                revenueMap[label] = { hari: label };
+                allBranches.forEach(b => {
+                    revenueMap[label][b.name] = 0;
+                });
+            }
+            trxToday.forEach((t) => {
+                const label = diffDays <= 7 
+                    ? daysShort[t.createdAt.getDay()] 
+                    : `${t.createdAt.getDate()}/${t.createdAt.getMonth() + 1}`;
+                if (revenueMap[label] && t.cabang) {
+                    revenueMap[label][t.cabang] += t.total_pembayaran;
+                }
+            });
+        } else {
+            // Group by month
+            const startYear = startTrend.getFullYear();
+            const startMonth = startTrend.getMonth();
+            const endYear = endTrend.getFullYear();
+            const endMonth = endTrend.getMonth();
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+
+            let currentYear = startYear;
+            let currentMonth = startMonth;
+
+            while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+                const label = `${monthNames[currentMonth]} ${String(currentYear).slice(-2)}`;
+                revenueMap[label] = { hari: label };
+                allBranches.forEach(b => {
+                    revenueMap[label][b.name] = 0;
+                });
+
+                currentMonth++;
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
                 }
             }
-        });
+
+            trxToday.forEach((t) => {
+                const tYear = t.createdAt.getFullYear();
+                const tMonth = t.createdAt.getMonth();
+                const label = `${monthNames[tMonth]} ${String(tYear).slice(-2)}`;
+                if (revenueMap[label] && t.cabang) {
+                    revenueMap[label][t.cabang] += t.total_pembayaran;
+                }
+            });
+        }
         const revenueData = Object.values(revenueMap);
 
         const selisihKas = reportsToday.reduce((sum, r) => sum + Math.abs(r.selisih), 0);

@@ -21,6 +21,40 @@ const Reports = () => {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [branchBreakdown, setBranchBreakdown] = useState({});
   const [branches, setBranches] = useState([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filterType, setFilterType] = useState("all");
+
+  const handleFilterTypeChange = (type) => {
+    setFilterType(type);
+    const today = new Date();
+    
+    if (type === "all") {
+      setStartDate("");
+      setEndDate("");
+    } else if (type === "today") {
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (type === "week") {
+      const lastWeek = new Date();
+      lastWeek.setDate(today.getDate() - 7);
+      const startStr = lastWeek.getFullYear() + "-" + String(lastWeek.getMonth() + 1).padStart(2, '0') + "-" + String(lastWeek.getDate()).padStart(2, '0');
+      const endStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(startStr);
+      setEndDate(endStr);
+    } else if (type === "month") {
+      const lastMonth = new Date();
+      lastMonth.setMonth(today.getMonth() - 1);
+      const startStr = lastMonth.getFullYear() + "-" + String(lastMonth.getMonth() + 1).padStart(2, '0') + "-" + String(lastMonth.getDate()).padStart(2, '0');
+      const endStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(startStr);
+      setEndDate(endStr);
+    } else if (type === "custom") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -85,13 +119,19 @@ const Reports = () => {
   // ======================
   // FETCH DATA
   // ======================
-  const fetchData = async (branch = selectedBranch) => {
+  const fetchData = async (branch = selectedBranch, start = startDate, end = endDate) => {
     try {
       setLoading(true);
 
       const params = {};
       if (branch) {
         params.cabang = branch;
+      }
+      if (start) {
+        params.startDate = start;
+      }
+      if (end) {
+        params.endDate = end;
       }
 
       const res = await api.get("/transactions/report", { params });
@@ -116,8 +156,8 @@ const Reports = () => {
   };
 
   useEffect(() => {
-    fetchData(selectedBranch);
-  }, [selectedBranch]);
+    fetchData(selectedBranch, startDate, endDate);
+  }, [selectedBranch, startDate, endDate]);
 
   const handleBranchChange = (branch) => {
     setSelectedBranch(branch);
@@ -196,21 +236,169 @@ const Reports = () => {
   // ======================
   // EXPORT PDF
   // ======================
-  const exportPDF = async () => {
-    const input = document.getElementById("report-table");
-    if (!input) return;
+  const exportPDF = () => {
+    if (reports.length === 0) {
+      Swal.fire("Peringatan", "Tidak ada data untuk diekspor!", "warning");
+      return;
+    }
 
-    const canvas = await html2canvas(input);
-    const imgData = canvas.toDataURL("image/png");
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(31, 41, 55); // Gray 800
+    doc.text(`LAPORAN KEUANGAN HARIAN - NICKY FROZEN`, 14, 22);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(75, 85, 99); // Gray 600
+    doc.text(`Cabang: ${selectedBranch || "Semua Cabang"}`, 14, 30);
+    doc.text(`Periode: ${startDate || "Semua"} s/d ${endDate || "Semua"}`, 14, 36);
+    doc.text(`Tanggal Unduh: ${new Date().toLocaleString("id-ID")}`, 14, 42);
+    
+    // Divider
+    doc.setDrawColor(209, 213, 219); // Gray 300
+    doc.line(14, 48, 196, 48);
+    
+    // Summary Section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(14, 116, 144); // Cyan 700
+    doc.text("1. RINGKASAN PENDAPATAN PERIODE INI", 14, 56);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55);
+    doc.text(`Total Omzet Pendapatan: ${formatRupiah(summary.totalRevenue)}`, 14, 64);
+    doc.text(`Total Transaksi: ${summary.totalTransactions} Transaksi`, 14, 70);
+    doc.text(`Pendapatan Tunai (Cash): ${formatRupiah(summary.cashIncome)}`, 14, 76);
+    doc.text(`Pendapatan Digital (QRIS): ${formatRupiah(summary.qrisIncome)}`, 14, 82);
 
-    const pdf = new jsPDF("p", "mm", "a4");
+    // Branch Breakdown Section
+    let nextY = 92;
+    if (Object.keys(branchBreakdown).length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(14, 116, 144);
+      doc.text("2. RINCIAN PER CABANG", 14, nextY);
+      nextY += 8;
 
-    const imgWidth = 190;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(75, 85, 99);
+      doc.text("Cabang", 14, nextY);
+      doc.text("Total Pendapatan", 60, nextY);
+      doc.text("Total Transaksi", 110, nextY);
+      doc.text("Tunai (Cash)", 140, nextY);
+      doc.text("Digital", 170, nextY);
+      
+      nextY += 4;
+      doc.setDrawColor(229, 231, 235);
+      doc.line(14, nextY, 196, nextY);
+      nextY += 5;
 
-    pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
-    pdf.save("financial-report.pdf");
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(31, 41, 55);
+      Object.keys(branchBreakdown).forEach((branchName) => {
+        const data = branchBreakdown[branchName] || {};
+        doc.text(branchName, 14, nextY);
+        doc.text(formatRupiah(data.revenue || 0), 60, nextY);
+        doc.text(`${data.transactions || 0} trx`, 110, nextY);
+        doc.text(formatRupiah(data.cash || 0), 140, nextY);
+        doc.text(formatRupiah((data.qris || 0) + (data.transfer || 0) + (data.card || 0)), 170, nextY);
+        nextY += 6;
+      });
 
+      nextY += 4;
+    }
+
+    doc.setDrawColor(209, 213, 219);
+    doc.line(14, nextY, 196, nextY);
+    nextY += 8;
+
+    // Daily Transaction Table Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(14, 116, 144);
+    doc.text("3. RIWAYAT TUTUP BUKU HARIAN", 14, nextY);
+    nextY += 8;
+
+    // Table Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(75, 85, 99);
+    doc.text("Tanggal", 14, nextY);
+    doc.text("Cabang", 38, nextY);
+    doc.text("Pend. Tunai", 65, nextY);
+    doc.text("Pend. Digital", 95, nextY);
+    doc.text("Total Sistem", 125, nextY);
+    doc.text("Kas Fisik", 155, nextY);
+    doc.text("Selisih", 180, nextY);
+    
+    nextY += 4;
+    doc.setDrawColor(209, 213, 219);
+    doc.line(14, nextY, 196, nextY);
+    nextY += 6;
+
+    // Table Content
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(31, 41, 55);
+
+    reports.forEach((rep) => {
+      // Check if we need to add a new page
+      if (nextY > 275) {
+        doc.addPage();
+        nextY = 20;
+        
+        // Print table header again on new page
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(75, 85, 99);
+        doc.text("Tanggal", 14, nextY);
+        doc.text("Cabang", 38, nextY);
+        doc.text("Pend. Tunai", 65, nextY);
+        doc.text("Pend. Digital", 95, nextY);
+        doc.text("Total Sistem", 125, nextY);
+        doc.text("Kas Fisik", 155, nextY);
+        doc.text("Selisih", 180, nextY);
+        
+        nextY += 4;
+        doc.setDrawColor(209, 213, 219);
+        doc.line(14, nextY, 196, nextY);
+        nextY += 6;
+        
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(31, 41, 55);
+      }
+
+      const dateStr = new Date(rep.tanggal_laporan).toLocaleDateString("id-ID");
+      doc.text(dateStr, 14, nextY);
+      doc.text(rep.cabang || "", 38, nextY);
+      doc.text(formatRupiah(rep.total_pendapatan_cash), 65, nextY);
+      doc.text(formatRupiah(rep.total_pendapatan_digital), 95, nextY);
+      doc.text(formatRupiah(rep.total_pendapatan_sistem), 125, nextY);
+      doc.text(formatRupiah(rep.total_kas_fisik), 155, nextY);
+      
+      const selisihText = rep.selisih === 0 ? "Aman" : formatRupiah(rep.selisih);
+      if (rep.selisih < 0) {
+        doc.setTextColor(220, 38, 38); // Red
+      } else if (rep.selisih > 0) {
+        doc.setTextColor(217, 119, 6); // Orange
+      } else {
+        doc.setTextColor(22, 163, 74); // Green
+      }
+      doc.text(selisihText, 180, nextY);
+      
+      doc.setTextColor(31, 41, 55); // Reset color
+      nextY += 6;
+    });
+
+    const fileBranch = selectedBranch ? selectedBranch.replace(/\s+/g, "_") : "Semua_Cabang";
+    const fileStart = startDate ? startDate : "Awal";
+    const fileEnd = endDate ? endDate : "Akhir";
+    
+    doc.save(`Laporan_Keuangan_Nicky_Frozen_${fileBranch}_${fileStart}_to_${fileEnd}.pdf`);
     alertSuccess("Export PDF berhasil");
   };
 
@@ -218,6 +406,11 @@ const Reports = () => {
   // EXPORT EXCEL
   // ======================
   const exportExcel = () => {
+    if (reports.length === 0) {
+      Swal.fire("Peringatan", "Tidak ada data untuk diekspor!", "warning");
+      return;
+    }
+
     const worksheet = XLSX.utils.json_to_sheet(
       reports.map((r) => ({
         Tanggal: new Date(r.tanggal_laporan).toLocaleDateString("id-ID"),
@@ -244,7 +437,11 @@ const Reports = () => {
       type: "application/octet-stream",
     });
 
-    saveAs(data, "financial-report.xlsx");
+    const fileBranch = selectedBranch ? selectedBranch.replace(/\s+/g, "_") : "Semua_Cabang";
+    const fileStart = startDate ? startDate : "Awal";
+    const fileEnd = endDate ? endDate : "Akhir";
+
+    saveAs(data, `Laporan_Keuangan_Nicky_Frozen_${fileBranch}_${fileStart}_to_${fileEnd}.xlsx`);
 
     alertSuccess("Export Excel berhasil");
   };
@@ -280,31 +477,88 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* FILTER CABANG */}
-      <div className="flex items-center gap-2 mb-6 bg-card border border-border p-1.5 rounded-2xl shadow-sm w-fit">
-        <button
-          onClick={() => handleBranchChange("")}
-          className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            selectedBranch === ""
-              ? "bg-primary text-sidebar shadow-sm"
-              : "text-text-secondary hover:text-text hover:bg-background"
-          }`}
-        >
-          Semua Cabang
-        </button>
-        {branches.map((b) => (
-          <button
-            key={b._id}
-            onClick={() => handleBranchChange(b.name)}
-            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              selectedBranch.toLowerCase() === b.name.toLowerCase()
-                ? "bg-primary text-sidebar shadow-sm"
-                : "text-text-secondary hover:text-text hover:bg-background"
-            }`}
-          >
-            {b.name}
-          </button>
-        ))}
+      {/* FILTER AREA */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 bg-card border border-border p-5 rounded-3xl shadow-sm">
+        {/* Filter Cabang */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Pilih Cabang</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleBranchChange("")}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                selectedBranch === ""
+                  ? "bg-primary text-sidebar shadow-sm"
+                  : "text-text-secondary hover:text-text hover:bg-background border border-border"
+              }`}
+            >
+              Semua Cabang
+            </button>
+            {branches.map((b) => (
+              <button
+                key={b._id}
+                onClick={() => handleBranchChange(b.name)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                  selectedBranch.toLowerCase() === b.name.toLowerCase()
+                    ? "bg-primary text-sidebar shadow-sm"
+                    : "text-text-secondary hover:text-text hover:bg-background border border-border"
+                }`}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Filter Tanggal */}
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Periode Laporan</label>
+            <select
+              value={filterType}
+              onChange={(e) => handleFilterTypeChange(e.target.value)}
+              className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-text bg-background outline-none focus:border-primary cursor-pointer min-w-[150px]"
+            >
+              <option value="all">Semua Waktu</option>
+              <option value="today">Hari Ini (1 Hari)</option>
+              <option value="week">1 Minggu Terakhir</option>
+              <option value="month">1 Bulan Terakhir</option>
+              <option value="custom">Kustom Tanggal</option>
+            </select>
+          </div>
+
+          {filterType === "custom" && (
+            <>
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Tanggal Mulai</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-4 py-2 border border-border rounded-xl text-xs font-medium text-text bg-background outline-none focus:border-primary"
+                />
+              </div>
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Tanggal Akhir</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-4 py-2 border border-border rounded-xl text-xs font-medium text-text bg-background outline-none focus:border-primary"
+                />
+              </div>
+            </>
+          )}
+
+          {filterType !== "all" && (
+            <button
+              onClick={() => handleFilterTypeChange("all")}
+              className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border-danger/30 transition-colors cursor-pointer bg-background"
+              title="Reset Filter Tanggal"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SUMMARY */}

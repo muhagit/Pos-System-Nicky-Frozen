@@ -48,7 +48,7 @@ const CustomTooltip = ({ active, payload, label }) => {
  * Props:
  * - data : array — override dummy data dari API (opsional)
  */
-const RevenueChart = ({ data = defaultData }) => {
+const RevenueChart = ({ data = defaultData, title = "Penjualan Mingguan" }) => {
   // Ambil nama cabang secara dinamis dari keys data (kecuali key "hari")
   const branchKeys = data.length > 0 
     ? Object.keys(data[0]).filter(key => key !== 'hari')
@@ -60,7 +60,7 @@ const RevenueChart = ({ data = defaultData }) => {
     <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
       {/* HEADER */}
       <div className="mb-4">
-        <h2 className="font-semibold text-text text-sm">Penjualan Mingguan</h2>
+        <h2 className="font-semibold text-text text-sm">{title}</h2>
         <p className="text-xs text-text-secondary mt-0.5">
           {branchKeys.length > 1 
             ? `Perbandingan Penjualan Antar Cabang` 

@@ -9,7 +9,6 @@ import {
     FiRefreshCw,
     FiFileText,
     FiLogOut,
-    FiSettings,
     FiTag,
 } from "react-icons/fi";
 
@@ -130,16 +129,7 @@ const AdminLayout = () => {
                             Reports
                         </button>
 
-                        <button
-                            onClick={() => navigate("/admin/settings")}
-                            className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${location.pathname === "/admin/settings"
-                                    ? "bg-primary"
-                                    : "hover:bg-sidebar-light"
-                                }`}
-                        >
-                            <FiSettings size={20} />
-                            Settings
-                        </button>
+
                     </div>
                 </div>
 

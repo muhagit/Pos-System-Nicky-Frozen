@@ -34,7 +34,7 @@ const CategoryChart = ({ data = defaultData }) => {
       <div className="mb-4">
         <h2 className="font-semibold text-text text-sm">Metode Pembayaran</h2>
         <p className="text-xs text-text-secondary mt-0.5">
-          Breakdown hari ini (Cash, QRIS, GoPay)
+          Breakdown metode pembayaran (Cash, E-Money)
         </p>
       </div>
 

@@ -18,6 +18,18 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
         status: "Active",
     });
 
+    // Evaluasi kekuatan password secara real-time
+    const password = formData.password || "";
+    const hasMinLength = password.length >= 8;
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasLetterAndNum = hasLetter && hasNumber;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasUpperAndLower = hasUpper && hasLower;
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    const isPasswordStrong = hasMinLength && hasLetterAndNum && hasUpperAndLower && hasSymbol;
+
     const [branches, setBranches] = useState([]);
 
     useEffect(() => {
@@ -142,6 +154,15 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 title: "Form Belum Lengkap",
                 text: "Password dan Konfirmasi Password harus diisi.",
                 confirmButtonColor: "#3085d6"
+            });
+        }
+
+        if (!isPasswordStrong) {
+            return Swal.fire({
+                icon: "error",
+                title: "Password Lemah",
+                text: "Password Anda belum memenuhi seluruh persyaratan keamanan.",
+                confirmButtonColor: "#d33"
             });
         }
 
@@ -351,33 +372,88 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
 
                     {/* LANGKAH 3: Password & Konfirmasi Password */}
                     {currentStep === 3 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-fade-in">
-                            <div>
-                                <label className="text-sm font-medium text-text">
-                                    Password <span className="text-danger">*</span>
-                                </label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    placeholder="Masukkan password"
-                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                                />
+                        <div className="space-y-5 animate-fade-in">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="text-sm font-medium text-text">
+                                        Password <span className="text-danger">*</span>
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        placeholder="Masukkan password"
+                                        className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-medium text-text">
+                                        Konfirmasi Password <span className="text-danger">*</span>
+                                    </label>
+                                    <input
+                                        type="password"
+                                        name="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        placeholder="Ketik ulang password"
+                                        className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
+                                    />
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="text-sm font-medium text-text">
-                                    Konfirmasi Password <span className="text-danger">*</span>
-                                </label>
-                                <input
-                                    type="password"
-                                    name="confirmPassword"
-                                    value={formData.confirmPassword}
-                                    onChange={handleChange}
-                                    placeholder="Ketik ulang password"
-                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                                />
+                            {/* Password requirements UI card */}
+                            <div className="p-4 bg-background rounded-2xl border border-border text-xs text-text-secondary space-y-2">
+                                <p className="font-semibold text-text mb-2">Persyaratan Password:</p>
+                                <div className="flex items-center">
+                                    {hasMinLength ? (
+                                        <svg className="w-4 h-4 text-emerald-500 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-4 h-4 text-text-secondary opacity-50 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    )}
+                                    <span className={hasMinLength ? "text-emerald-500 font-medium" : ""}>Minimal 8 karakter</span>
+                                </div>
+                                <div className="flex items-center">
+                                    {hasLetterAndNum ? (
+                                        <svg className="w-4 h-4 text-emerald-500 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-4 h-4 text-text-secondary opacity-50 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    )}
+                                    <span className={hasLetterAndNum ? "text-emerald-500 font-medium" : ""}>Terdiri dari huruf dan angka</span>
+                                </div>
+                                <div className="flex items-center">
+                                    {hasUpperAndLower ? (
+                                        <svg className="w-4 h-4 text-emerald-500 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-4 h-4 text-text-secondary opacity-50 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    )}
+                                    <span className={hasUpperAndLower ? "text-emerald-500 font-medium" : ""}>Harus ada huruf kapital dan non-kapital</span>
+                                </div>
+                                <div className="flex items-center">
+                                    {hasSymbol ? (
+                                        <svg className="w-4 h-4 text-emerald-500 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-4 h-4 text-text-secondary opacity-50 mr-2 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    )}
+                                    <span className={hasSymbol ? "text-emerald-500 font-medium" : ""}>Harus ada simbol/karakter khusus (misal: @, #, $, dll.)</span>
+                                </div>
                             </div>
                         </div>
                     )}

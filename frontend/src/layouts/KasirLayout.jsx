@@ -3,7 +3,6 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   FiShoppingCart,
   FiClock,
-  FiBell,
   FiLogOut,
   FiFileText,
 } from "react-icons/fi";
@@ -94,17 +93,7 @@ const KasirLayout = () => {
               Report
             </button>
 
-            <button
-              onClick={() => navigate("/notifications")}
-              className={`p-4 rounded-2xl text-left font-medium flex items-center gap-3 transition ${
-                location.pathname === "/notifications"
-                  ? "bg-primary"
-                  : "hover:bg-sidebar-light"
-              }`}
-            >
-              <FiBell size={20} />
-              Notifications
-            </button>
+
           </div>
         </div>
 

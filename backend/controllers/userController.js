@@ -2,6 +2,92 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import dns from "dns";
 import sendEmail from "../utils/sendEmail.js";
+
+const DISPOSABLE_DOMAINS = [
+    "yopmail.com", "yopmail.fr", "yopmail.net", "cool.fr.nf", "jetable.fr.nf", 
+    "courriel.fr.nf", "moncourriel.fr.nf", "monemail.fr.nf", "monmail.fr.nf", 
+    "hide.biz.pr", "mymail.infos.ucl.ac.be", "mailinator.com", "mailinator.net", 
+    "mailinator.org", "mailin8r.com", "binkmail.com", "safetymail.info", 
+    "tempmail.com", "temp-mail.org", "temp-mail.ru", "temp-mail.de", 
+    "guerrillamail.com", "guerrillamailblock.com", "guerrillamail.net", 
+    "guerrillamail.org", "guerrillamail.biz", "grr.la", "guerrillamail.de", 
+    "10minutemail.com", "10minutemail.co.za", "10minutemail.net", "10minutemail.org", 
+    "trashmail.com", "trashmail.de", "trashmail.me", "trashmail.at", "trashmail.net", 
+    "sharklasers.com", "guerrillamail.info", "guerrillamail.la", "dispostable.com", 
+    "getairmail.com", "maildrop.cc", "mintemail.com", "generator.email", 
+    "throwawaymail.com", "emailondeck.com", "tempmailaddress.com", "burnermail.io", 
+    "fakemailgenerator.com", "tempmail.net", "10minutemail.co", "tempmail.co", 
+    "crazymailing.com", "disposable.com", "quickemail.info"
+];
+
+const checkDomainMX = (domain) => {
+    return new Promise((resolve) => {
+        dns.resolveMx(domain, (err, addresses) => {
+            if (err) {
+                if (err.code === "ENOTFOUND") {
+                    return resolve(false);
+                }
+                return resolve(true);
+            }
+            if (!addresses || addresses.length === 0) {
+                return resolve(false);
+            }
+            resolve(true);
+        });
+    });
+};
+
+const validateEmailReal = async (email) => {
+    if (!email) {
+        return { isValid: false, message: "Email harus diisi" };
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return { isValid: false, message: "Format email tidak valid" };
+    }
+
+    const domain = email.split("@")[1].toLowerCase();
+    
+    // Cek list email disposable
+    const isDisposable = DISPOSABLE_DOMAINS.some(
+        (d) => domain === d || domain.endsWith("." + d)
+    );
+    if (isDisposable) {
+        return { isValid: false, message: "Email terdeteksi menggunakan domain sekali pakai/dummy" };
+    }
+
+    // Cek DNS MX
+    const hasMx = await checkDomainMX(domain);
+    if (!hasMx) {
+        return { isValid: false, message: "Email terdeteksi sebagai dummy atau domain tidak aktif" };
+    }
+
+    return { isValid: true };
+};
+
+const validatePasswordStrength = (password) => {
+    if (!password) {
+        return { isValid: false, message: "Password harus diisi" };
+    }
+    if (password.length < 8) {
+        return { isValid: false, message: "Password minimal 8 karakter" };
+    }
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasLetter || !hasNumber) {
+        return { isValid: false, message: "Password harus terdiri dari huruf dan angka" };
+    }
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    if (!hasUppercase || !hasLowercase) {
+        return { isValid: false, message: "Password harus memiliki huruf kapital dan non-kapital" };
+    }
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    if (!hasSymbol) {
+        return { isValid: false, message: "Password harus memiliki setidaknya satu simbol" };
+    }
+    return { isValid: true };
+};
 export const getUsers = async (req, res) => {
     try {
         // Mengambil semua user dari database, kecuali password-nya
@@ -52,6 +138,11 @@ export const updateUser = async (req, res) => {
             user.status = req.body.status || user.status;
 
             if (req.body.email) {
+                const emailValidation = await validateEmailReal(req.body.email);
+                if (!emailValidation.isValid) {
+                    return res.status(400).json({ message: emailValidation.message });
+                }
+
                 const emailExists = await User.findOne({ email: req.body.email.toLowerCase() });
                 if (emailExists && emailExists._id.toString() !== user._id.toString()) {
                     return res.status(400).json({ message: "Email sudah digunakan oleh user lain" });
@@ -61,7 +152,12 @@ export const updateUser = async (req, res) => {
 
             // Jika user mengganti password dari form edit
             if (req.body.password) {
-                user.password = req.body.password;
+                const passwordValidation = validatePasswordStrength(req.body.password);
+                if (!passwordValidation.isValid) {
+                    return res.status(400).json({ message: passwordValidation.message });
+                }
+                const salt = await bcrypt.genSalt(10);
+                user.password = await bcrypt.hash(req.body.password, salt);
             }
 
             const updatedUser = await user.save();
@@ -102,14 +198,20 @@ export const registerUser = async (req, res) => {
             });
         }
 
-        if (!email) {
-            return res.status(400).json({ message: "Email harus diisi" });
+        const emailValidation = await validateEmailReal(email);
+        if (!emailValidation.isValid) {
+            return res.status(400).json({ message: emailValidation.message });
         }
         const emailExists = await User.findOne({ email: email.toLowerCase() });
         if (emailExists) {
             return res.status(400).json({
                 message: "Email sudah digunakan, silakan pilih yang lain",
             });
+        }
+
+        const passwordValidation = validatePasswordStrength(password);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({ message: passwordValidation.message });
         }
 
         // ==================== 2. HASH PASSWORD DI SINI ====================
@@ -181,23 +283,6 @@ export const registerUser = async (req, res) => {
     }
 };
 
-const checkDomainMX = (domain) => {
-    return new Promise((resolve) => {
-        dns.resolveMx(domain, (err, addresses) => {
-            if (err) {
-                if (err.code === "ENOTFOUND") {
-                    return resolve(false);
-                }
-                return resolve(true);
-            }
-            if (!addresses || addresses.length === 0) {
-                return resolve(false);
-            }
-            resolve(true);
-        });
-    });
-};
-
 export const verifyUserStep1 = async (req, res) => {
     try {
         const { username, email } = req.body;
@@ -212,23 +297,15 @@ export const verifyUserStep1 = async (req, res) => {
             return res.status(400).json({ message: "Username sudah digunakan, silakan pilih yang lain" });
         }
 
-        // 2. Format email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: "Format email tidak valid" });
+        // 2. Cek email unik & validitas domain asli/aktif
+        const emailValidation = await validateEmailReal(email);
+        if (!emailValidation.isValid) {
+            return res.status(400).json({ message: emailValidation.message });
         }
 
-        // 3. Cek email unik
         const emailExists = await User.findOne({ email: email.toLowerCase() });
         if (emailExists) {
             return res.status(400).json({ message: "Email sudah digunakan, silakan pilih yang lain" });
-        }
-
-        // 4. Cek MX domain (real domain verification)
-        const domain = email.split("@")[1];
-        const isRealEmail = await checkDomainMX(domain);
-        if (!isRealEmail) {
-            return res.status(400).json({ message: "Email terdeteksi sebagai dummy atau domain tidak aktif" });
         }
 
         res.json({ success: true, message: "Username dan email valid" });

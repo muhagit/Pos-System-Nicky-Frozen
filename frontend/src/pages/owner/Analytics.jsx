@@ -44,22 +44,80 @@ const Analytics = () => {
   });
   const [trendData, setTrendData] = useState([]);
   const [selectedCabang, setSelectedCabang] = useState("Gabungan");
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filterType, setFilterType] = useState("all");
 
-  const fetchAnalytics = async (branch) => {
+  const handleFilterTypeChange = (type) => {
+    setFilterType(type);
+    const today = new Date();
+    
+    if (type === "all") {
+      setStartDate("");
+      setEndDate("");
+    } else if (type === "today") {
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (type === "week") {
+      const lastWeek = new Date();
+      lastWeek.setDate(today.getDate() - 7);
+      const startStr = lastWeek.getFullYear() + "-" + String(lastWeek.getMonth() + 1).padStart(2, '0') + "-" + String(lastWeek.getDate()).padStart(2, '0');
+      const endStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(startStr);
+      setEndDate(endStr);
+    } else if (type === "month") {
+      const lastMonth = new Date();
+      lastMonth.setMonth(today.getMonth() - 1);
+      const startStr = lastMonth.getFullYear() + "-" + String(lastMonth.getMonth() + 1).padStart(2, '0') + "-" + String(lastMonth.getDate()).padStart(2, '0');
+      const endStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(startStr);
+      setEndDate(endStr);
+    } else if (type === "custom") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
+  const getTrendTitle = () => {
+    if (filterType === "all") return "Tren Pendapatan Mingguan";
+    if (filterType === "today") return "Tren Pendapatan Hari Ini";
+    if (filterType === "week") return "Tren Pendapatan Mingguan (7 Hari Terakhir)";
+    if (filterType === "month") return "Tren Pendapatan Bulanan (30 Hari Terakhir)";
+    return "Tren Pendapatan Kustom";
+  };
+
+  const getTrendDesc = () => {
+    if (filterType === "all") return `Pendapatan harian dalam 7 hari terakhir (${selectedCabang})`;
+    if (filterType === "today") return `Pendapatan per jam untuk hari ini (${selectedCabang})`;
+    if (filterType === "week") return `Pendapatan harian dalam 7 hari terakhir (${selectedCabang})`;
+    if (filterType === "month") return `Pendapatan harian dalam 30 hari terakhir (${selectedCabang})`;
+    return `Pendapatan tren berdasarkan rentang waktu terpilih (${selectedCabang})`;
+  };
+
+  const fetchAnalytics = async (branch = selectedCabang, start = startDate, end = endDate) => {
     try {
       setLoading(true);
 
       const userInfo = JSON.parse(localStorage.getItem("userInfo"));
       const config = {
         headers: { Authorization: `Bearer ${userInfo?.token}` },
+        params: {}
       };
 
-      const url = branch === "Gabungan"
-        ? "/transactions/report"
-        : `/transactions/report?cabang=${encodeURIComponent(branch)}`;
+      if (branch && branch !== "Gabungan") {
+        config.params.cabang = branch;
+      }
+      if (start) {
+        config.params.startDate = start;
+      }
+      if (end) {
+        config.params.endDate = end;
+      }
 
-      const { data } = await api.get(url, config);
+      const { data } = await api.get("/transactions/report", config);
 
       setAnalytics({
         totalRevenue: data.totalRevenue || 0,
@@ -76,8 +134,20 @@ const Analytics = () => {
   };
 
   useEffect(() => {
-    fetchAnalytics(selectedCabang);
-  }, [selectedCabang]);
+    fetchAnalytics(selectedCabang, startDate, endDate);
+  }, [selectedCabang, startDate, endDate]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const { data } = await api.get("/branches?activeOnly=true");
+        setBranches(data || []);
+      } catch (error) {
+        console.error("Gagal mengambil data cabang:", error);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   const statCards = [
     {
@@ -92,7 +162,7 @@ const Analytics = () => {
     {
       label: "Total Orders",
       value: `${analytics.totalOrders} Pesanan`,
-      sub: "Transaksi selesai hari ini",
+      sub: filterType === "today" ? "Transaksi selesai hari ini" : "Transaksi selesai pada periode ini",
       icon: FiShoppingCart,
       iconBg: "bg-success/10",
       iconColor: "text-success",
@@ -129,24 +199,81 @@ const Analytics = () => {
   return (
     <div className="p-6 min-h-screen bg-background font-poppins">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-text">Analytics</h1>
-          <p className="text-text-secondary mt-1">
-            Business performance overview
-          </p>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-text">Analytics</h1>
+        <p className="text-text-secondary mt-1">
+          Business performance overview
+        </p>
+      </div>
 
-        <div>
+      {/* FILTER AREA */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 bg-card border border-border p-5 rounded-3xl shadow-sm">
+        {/* Filter Cabang */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Pilih Cabang</label>
           <select
             value={selectedCabang}
             onChange={(e) => setSelectedCabang(e.target.value)}
-            className="border border-border rounded-xl px-4 py-2.5 bg-card text-text outline-none shadow-sm font-medium focus:border-primary transition cursor-pointer"
+            className="border border-border rounded-xl px-4 py-2 bg-background text-text outline-none shadow-sm font-semibold focus:border-primary transition cursor-pointer text-xs"
           >
             <option value="Gabungan">Gabungan (Semua Cabang)</option>
-            <option value="Cabang Solo">Cabang Solo</option>
-            <option value="Cabang Jogja">Cabang Jogja</option>
+            {branches.map((b) => (
+              <option key={b._id} value={b.name}>
+                {b.name}
+              </option>
+            ))}
           </select>
+        </div>
+
+        {/* Filter Tanggal */}
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Periode Laporan</label>
+            <select
+              value={filterType}
+              onChange={(e) => handleFilterTypeChange(e.target.value)}
+              className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-text bg-background outline-none focus:border-primary cursor-pointer min-w-[150px]"
+            >
+              <option value="all">Semua Waktu</option>
+              <option value="today">Hari Ini (1 Hari)</option>
+              <option value="week">1 Minggu Terakhir</option>
+              <option value="month">1 Bulan Terakhir</option>
+              <option value="custom">Kustom Tanggal</option>
+            </select>
+          </div>
+
+          {filterType === "custom" && (
+            <>
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Tanggal Mulai</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-4 py-2 border border-border rounded-xl text-xs font-medium text-text bg-background outline-none focus:border-primary"
+                />
+              </div>
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Tanggal Akhir</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-4 py-2 border border-border rounded-xl text-xs font-medium text-text bg-background outline-none focus:border-primary"
+                />
+              </div>
+            </>
+          )}
+
+          {filterType !== "all" && (
+            <button
+              onClick={() => handleFilterTypeChange("all")}
+              className="px-4 py-2.5 border border-border rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border-danger/30 transition-colors cursor-pointer bg-background"
+              title="Reset Filter Tanggal"
+            >
+              Reset Filter
+            </button>
+          )}
         </div>
       </div>
 
@@ -161,10 +288,8 @@ const Analytics = () => {
       <div className="mt-8 bg-card border border-border rounded-2xl p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-text text-sm">Tren Pendapatan Mingguan</h2>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Pendapatan harian dalam 7 hari terakhir ({selectedCabang})
-            </p>
+            <h2 className="font-semibold text-text text-sm">{getTrendTitle()}</h2>
+            <p className="text-xs text-text-secondary mt-0.5">{getTrendDesc()}</p>
           </div>
         </div>
 

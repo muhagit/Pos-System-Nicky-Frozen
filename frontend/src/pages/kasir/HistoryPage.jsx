@@ -2,6 +2,8 @@ import {
     FiArrowLeft,
     FiSearch,
     FiEye,
+    FiArrowUp,
+    FiArrowDown,
 } from "react-icons/fi";
 
 import { useEffect, useState } from "react";
@@ -21,14 +23,15 @@ const HistoryPage = () => {
     const [filterPayment, setFilterPayment] = useState("");
     const [filterCategory, setFilterCategory] = useState("");
     const [filterShift, setFilterShift] = useState("");
-    const [sortByDate, setSortByDate] = useState("newest"); // "newest" or "oldest"
+    const [sortBy, setSortBy] = useState("time"); // "time" or "amount"
+    const [sortDirection, setSortDirection] = useState("desc"); // "asc" or "desc"
     const [dbCashiers, setDbCashiers] = useState([]);
     const [dbCategories, setDbCategories] = useState([]);
     const itemsPerPage = 8;
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, filterDate, filterCashier, filterPayment, filterCategory, filterShift, sortByDate]);
+    }, [searchQuery, filterDate, filterCashier, filterPayment, filterCategory, filterShift, sortBy, sortDirection]);
 
     const filteredCashiers = dbCashiers.filter((user) => {
         if (user.role !== "Kasir") return false;
@@ -57,23 +60,40 @@ const HistoryPage = () => {
     });
 
     const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-        if (sortByDate === "newest") {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            return dateB - dateA;
-        } else if (sortByDate === "oldest") {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            return dateA - dateB;
-        } else if (sortByDate === "total-desc") {
-            return b.total - a.total;
-        } else if (sortByDate === "total-asc") {
-            return a.total - b.total;
+        let valA, valB;
+        if (sortBy === "time") {
+            valA = new Date(a.date).getTime();
+            valB = new Date(b.date).getTime();
+        } else {
+            valA = a.total || 0;
+            valB = b.total || 0;
         }
-        return 0;
+
+        if (sortDirection === "asc") {
+            return valA - valB;
+        } else {
+            return valB - valA;
+        }
     });
 
     const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const getPageNumbers = () => {
+        const pages = [];
+        if (totalPages <= 3) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage === 1) {
+                pages.push(1, 2, 3);
+            } else if (currentPage === totalPages) {
+                pages.push(totalPages - 2, totalPages - 1, totalPages);
+            } else {
+                pages.push(currentPage - 1, currentPage, currentPage + 1);
+            }
+        }
+        return pages;
+    };
     const paginatedTransactions = sortedTransactions.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
@@ -86,7 +106,8 @@ const HistoryPage = () => {
         setFilterPayment("");
         setFilterCategory("");
         setFilterShift("");
-        setSortByDate("newest");
+        setSortBy("time");
+        setSortDirection("desc");
     };
 
     useEffect(() => {
@@ -241,24 +262,29 @@ const HistoryPage = () => {
                         <option value="Shift 2">Shift 2</option>
                     </select>
                 </div>
-
                 {/* Sort Order Selector */}
-                <div className="flex items-center gap-1.5 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100 flex-shrink-0">
-                    <span className="text-xs text-gray-400 font-semibold uppercase">Urutan</span>
+                <div className="flex items-center gap-1 bg-white rounded-xl px-3 py-1 shadow-sm border border-gray-100 flex-shrink-0">
+                    <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Urutan</span>
                     <select
-                        value={sortByDate}
-                        onChange={(e) => setSortByDate(e.target.value)}
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
                         className="outline-none border-none text-sm text-gray-700 font-medium bg-transparent cursor-pointer"
                     >
-                        <option value="newest">Terbaru</option>
-                        <option value="oldest">Terlama</option>
-                        <option value="total-desc">Nominal Tertinggi</option>
-                        <option value="total-asc">Nominal Terendah</option>
+                        <option value="time">Waktu (Date)</option>
+                        <option value="amount">Nominal (Total)</option>
                     </select>
+                    
+                    <button
+                        onClick={() => setSortDirection(prev => prev === "asc" ? "desc" : "asc")}
+                        className="p-1 hover:bg-gray-50 rounded-lg transition text-gray-500 hover:text-primary cursor-pointer border-none bg-transparent flex items-center justify-center flex-shrink-0"
+                        title={sortDirection === "asc" ? "Ascending" : "Descending"}
+                    >
+                        {sortDirection === "asc" ? <FiArrowUp size={16} /> : <FiArrowDown size={16} />}
+                    </button>
                 </div>
-
+ 
                 {/* Reset Filters Button */}
-                {(filterDate || filterCashier || filterPayment || filterCategory || filterShift || sortByDate !== "newest" || searchQuery) && (
+                {(filterDate || filterCashier || filterPayment || filterCategory || filterShift || sortBy !== "time" || sortDirection !== "desc" || searchQuery) && (
                     <button
                         onClick={resetAllFilters}
                         className="text-sm font-semibold text-red-500 hover:text-red-600 transition bg-transparent border-none cursor-pointer flex-shrink-0"
@@ -346,8 +372,7 @@ const HistoryPage = () => {
                                     >
                                         Previous
                                     </button>
-                                    {[...Array(totalPages).keys()].map(pageIdx => {
-                                        const page = pageIdx + 1;
+                                    {getPageNumbers().map(page => {
                                         return (
                                             <button
                                                 key={page}

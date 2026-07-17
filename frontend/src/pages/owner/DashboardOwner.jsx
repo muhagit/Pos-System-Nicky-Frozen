@@ -65,51 +65,101 @@ const DashboardOwner = () => {
   const [categoryData, setCategoryData] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filterType, setFilterType] = useState("all");
+
+  const handleFilterTypeChange = (type) => {
+    setFilterType(type);
+    const today = new Date();
+    
+    if (type === "all") {
+      setStartDate("");
+      setEndDate("");
+    } else if (type === "today") {
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (type === "week") {
+      const lastWeek = new Date();
+      lastWeek.setDate(today.getDate() - 7);
+      const startStr = lastWeek.getFullYear() + "-" + String(lastWeek.getMonth() + 1).padStart(2, '0') + "-" + String(lastWeek.getDate()).padStart(2, '0');
+      const endStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(startStr);
+      setEndDate(endStr);
+    } else if (type === "month") {
+      const lastMonth = new Date();
+      lastMonth.setMonth(today.getMonth() - 1);
+      const startStr = lastMonth.getFullYear() + "-" + String(lastMonth.getMonth() + 1).padStart(2, '0') + "-" + String(lastMonth.getDate()).padStart(2, '0');
+      const endStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      setStartDate(startStr);
+      setEndDate(endStr);
+    } else if (type === "custom") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
+  const getRevenueChartTitle = () => {
+    if (filterType === "all") return "Penjualan Semua Waktu";
+    if (filterType === "today") return "Penjualan Hari Ini";
+    if (filterType === "week") return "Penjualan 1 Minggu Terakhir";
+    if (filterType === "month") return "Penjualan 1 Bulan Terakhir";
+    return "Penjualan Periode Kustom";
+  };
+
+  const fetchDashboardData = async (start = startDate, end = endDate) => {
+    try {
+      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+      const config = {
+        headers: { Authorization: `Bearer ${userInfo?.token}` },
+        params: {}
+      };
+
+      if (start) {
+        config.params.startDate = start;
+      }
+      if (end) {
+        config.params.endDate = end;
+      }
+
+      const { data } = await axios.get(
+        "http://localhost:5000/api/dashboard/owner",
+        config,
+      );
+
+      setStats(data.stats);
+      setNotifikasiTerbaru(data.notifikasi);
+
+      // Set data chart dari backend
+      setRevenueData(data.revenueData);
+      setCategoryData(data.categoryData);
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Gagal mengambil data dashboard:", error);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-        const config = {
-          headers: { Authorization: `Bearer ${userInfo?.token}` },
-        };
-
-        const { data } = await axios.get(
-          "http://localhost:5000/api/dashboard/owner",
-          config,
-        );
-
-        setStats(data.stats);
-        setNotifikasiTerbaru(data.notifikasi);
-
-        // Set data chart dari backend
-        setRevenueData(data.revenueData);
-        setCategoryData(data.categoryData);
-
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Gagal mengambil data dashboard:", error);
-        setIsLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
+    fetchDashboardData(startDate, endDate);
+  }, [startDate, endDate]);
 
   const statCards = [
     {
-      label: "Total Penjualan Hari Ini",
+      label: filterType === "today" ? "Total Penjualan Hari Ini" : "Total Penjualan",
       value: formatRupiah(stats.penjualanHariIni),
-      sub: `${stats.persentasePenjualan} dari kemarin`,
+      sub: `${stats.persentasePenjualan} dari periode sebelumnya`,
       icon: FiTrendingUp,
       iconBg: "bg-primary/10",
       iconColor: "text-primary",
       naik: !stats.persentasePenjualan.includes("-"),
     },
     {
-      label: "Total Transaksi",
+      label: filterType === "today" ? "Total Transaksi Hari Ini" : "Total Transaksi",
       value: `${stats.totalTransaksi} Transaksi`,
-      sub: `${stats.persentaseTransaksi} dari kemarin`,
+      sub: `${stats.persentaseTransaksi} dari periode sebelumnya`,
       icon: FiShoppingCart,
       iconBg: "bg-success/10",
       iconColor: "text-success",
@@ -220,6 +270,60 @@ const DashboardOwner = () => {
           </div>
         ) : (
           <>
+            {/* ── FILTER AREA ── */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border p-4 rounded-3xl shadow-sm">
+              <div className="text-sm font-bold text-text">Filter Dashboard</div>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Periode</label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => handleFilterTypeChange(e.target.value)}
+                    className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-text bg-background outline-none focus:border-primary cursor-pointer min-w-[150px]"
+                  >
+                    <option value="all">Semua Waktu</option>
+                    <option value="today">Hari Ini (1 Hari)</option>
+                    <option value="week">1 Minggu Terakhir</option>
+                    <option value="month">1 Bulan Terakhir</option>
+                    <option value="custom">Kustom Tanggal</option>
+                  </select>
+                </div>
+
+                {filterType === "custom" && (
+                  <>
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Tanggal Mulai</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-xl text-xs font-medium text-text bg-background outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block font-poppins">Tanggal Akhir</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-xl text-xs font-medium text-text bg-background outline-none focus:border-primary"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {filterType !== "all" && (
+                  <button
+                    onClick={() => handleFilterTypeChange("all")}
+                    className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border-danger/30 transition-colors cursor-pointer bg-background"
+                    title="Reset Filter Tanggal"
+                  >
+                    Reset Filter
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* ── STAT CARDS ── */}
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
               {statCards.map((card, i) => (
@@ -230,7 +334,7 @@ const DashboardOwner = () => {
             {/* ── CHARTS (Melempar data ke props) ── */}
             <div className="grid grid-cols-1 gap-4">
               <div className="xl:col-span-2">
-                <RevenueChart data={revenueData} />
+                <RevenueChart data={revenueData} title={getRevenueChartTitle()} />
               </div>
               <div>
                 <CategoryChart data={categoryData} />
