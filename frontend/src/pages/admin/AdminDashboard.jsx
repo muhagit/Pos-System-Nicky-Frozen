@@ -28,6 +28,7 @@ const AdminDashboard = () => {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [transactions, setTransactions] = useState([]);
+    const [transferLogs, setTransferLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
@@ -57,13 +58,15 @@ const AdminDashboard = () => {
                     headers: { Authorization: `Bearer ${userInfo?.token}` },
                 };
 
-                const [productRes, transactionRes] = await Promise.all([
+                const [productRes, transactionRes, logRes] = await Promise.all([
                     axios.get("http://localhost:5000/api/products", config),
                     axios.get("http://localhost:5000/api/transactions", config),
+                    axios.get("http://localhost:5000/api/products/transfer-logs", config),
                 ]);
 
                 setProducts(productRes.data);
                 setTransactions(transactionRes.data);
+                setTransferLogs(logRes.data);
                 setIsLoading(false);
             } catch (error) {
                 console.error("Gagal mengambil data:", error);
@@ -130,7 +133,6 @@ const AdminDashboard = () => {
     }));
 
     // Olah data Transaksi untuk Recent Movements
-    // Karena ini aplikasi kasir, semua transaksi diasumsikan sebagai pengeluaran (barang terjual)
     const recentMovements = [];
     transactions.forEach((trx) => {
         trx.detail_transaksi?.forEach((item) => {
@@ -148,12 +150,66 @@ const AdminDashboard = () => {
                         day: "2-digit",
                     },
                 ),
-                type: "out", // 'out' = terjual (merah), bisa 'in' jika ada fitur restock (hijau)
+                type: "out",
+                timestamp: trx.createdAt || Date.now()
             });
         });
     });
-    // Urutkan dari yang paling baru dan ambil 5 teratas
-    const topMovements = recentMovements.reverse().slice(0, 5);
+
+    // Olah data transfer dan adjustment stok
+    transferLogs.forEach((log) => {
+        if (log.tipe === "Adjustment") {
+            recentMovements.push({
+                id: log._id,
+                productName: log.produk_id?.nama_produk || "Produk",
+                branch: `${log.ke_cabang} (Adjustment)`,
+                user: log.user_id?.nama_lengkap || "Admin",
+                qty: log.jumlah,
+                date: new Date(log.createdAt).toLocaleDateString("id-ID", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                }),
+                type: log.dari_cabang ? "out" : "in",
+                timestamp: log.createdAt
+            });
+        } else if (log.tipe === "Transfer") {
+            recentMovements.push({
+                id: `${log._id}-out`,
+                productName: log.produk_id?.nama_produk || "Produk",
+                branch: `${log.dari_cabang} (Transfer Keluar)`,
+                user: log.user_id?.nama_lengkap || "Admin",
+                qty: log.jumlah,
+                date: new Date(log.createdAt).toLocaleDateString("id-ID", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                }),
+                type: "out",
+                timestamp: log.createdAt
+            });
+            recentMovements.push({
+                id: `${log._id}-in`,
+                productName: log.produk_id?.nama_produk || "Produk",
+                branch: `${log.ke_cabang} (Transfer Masuk)`,
+                user: log.user_id?.nama_lengkap || "Admin",
+                qty: log.jumlah,
+                date: new Date(log.createdAt).toLocaleDateString("id-ID", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                }),
+                type: "in",
+                timestamp: log.createdAt
+            });
+        }
+    });
+
+    // Urutkan berdasarkan waktu (timestamp) dari yang terbaru ke terlama
+    recentMovements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Ambil 5 teratas
+    const topMovements = recentMovements.slice(0, 5);
 
     return (
         <div className="h-full flex flex-col bg-background font-poppins">

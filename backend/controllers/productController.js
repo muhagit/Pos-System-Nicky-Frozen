@@ -168,6 +168,14 @@ export const updateProduct = async (req, res) => {
         const product = await Product.findById(req.params.id);
 
         if (product) {
+            // Salin stok lama untuk mencatat log penyesuaian (Adjustment)
+            const oldStokCabang = new Map();
+            if (product.stok_cabang) {
+                for (const [key, val] of product.stok_cabang.entries()) {
+                    oldStokCabang.set(key, val);
+                }
+            }
+
             // Cek apakah nama produk yang baru sudah digunakan oleh produk lain
             if (nama_produk) {
                 const existingProduct = await Product.findOne({
@@ -209,6 +217,24 @@ export const updateProduct = async (req, res) => {
                     product.stok_saat_ini = Array.from(product.stok_cabang.values()).reduce((a, b) => a + b, 0);
                 }
             }
+
+            // Bandingkan stok lama dan baru per cabang untuk dicatat di StockTransferLog
+            for (const [cabang, newQty] of product.stok_cabang.entries()) {
+                const oldQty = oldStokCabang.get(cabang) || 0;
+                const diff = newQty - oldQty;
+                if (diff !== 0) {
+                    await StockTransferLog.create({
+                        produk_id: product._id,
+                        tipe: "Adjustment",
+                        jumlah: Math.abs(diff),
+                        dari_cabang: diff < 0 ? cabang : undefined,
+                        ke_cabang: cabang,
+                        user_id: req.user._id,
+                        keterangan: req.body.keterangan || `Penyesuaian stok via edit produk di ${cabang} (dari ${oldQty} ke ${newQty})`
+                    });
+                }
+            }
+
             product.batas_stok_minimum =
                 batas_stok_minimum !== undefined
                     ? batas_stok_minimum
