@@ -31,6 +31,9 @@ const AdminLayout = () => {
                     {/* LOGO */}
                     <div>
                         <h1 className="text-3xl font-bold">Nicky Frozen</h1>
+                        {userInfo?.cabang && (
+                            <p className="text-sm text-gray-300 mt-0.5 font-medium">{userInfo.cabang}</p>
+                        )}
                         <p className="text-primary mt-1">Admin</p>
                     </div>
 
@@ -45,7 +48,7 @@ const AdminLayout = () => {
                                 {userInfo?.nama_lengkap || "Admin User"}
                             </h3>
                             <p className="text-sm text-gray-300">
-                                {userInfo?.role || "Admin"} ({userInfo?.cabang || "Pusat"})
+                                {userInfo?.role || "Admin"}
                             </p>
                         </div>
                     </div>

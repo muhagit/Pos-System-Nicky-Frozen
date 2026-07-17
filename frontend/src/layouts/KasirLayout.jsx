@@ -26,7 +26,9 @@ const KasirLayout = () => {
           {/* LOGO */}
           <div>
             <h1 className="text-3xl font-bold">Nicky Frozen</h1>
-
+            {userInfo?.cabang && (
+              <p className="text-sm text-gray-300 mt-0.5 font-medium">{userInfo.cabang}</p>
+            )}
             <p className="text-primary mt-1">Cashier</p>
           </div>
 
@@ -39,7 +41,7 @@ const KasirLayout = () => {
             <div>
               <h3 className="font-semibold">{userInfo?.nama_lengkap}</h3>
 
-              <p className="text-sm text-gray-300">{userInfo?.role} ({userInfo?.cabang || "Pusat"})</p>
+              <p className="text-sm text-gray-300">{userInfo?.role}</p>
             </div>
           </div>
 
