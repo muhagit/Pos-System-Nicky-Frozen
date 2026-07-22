@@ -1,0 +1,162 @@
+{
+  "TEST 1": {
+    "status": "PASS",
+    "message": "Login owner sukses, redirect ke /owner"
+  },
+  "TEST 2": {
+    "status": "PASS",
+    "message": "Login admin sukses, redirect ke /admin"
+  },
+  "TEST 3": {
+    "status": "PASS",
+    "message": "Login kasir sukses, redirect ke /kasir"
+  },
+  "TEST 4": {
+    "status": "PASS",
+    "message": "Semua card dashboard owner berhasil dimuat"
+  },
+  "TEST 5": {
+    "status": "PASS",
+    "message": "Dashboard Inventory Intelligence berhasil dimuat"
+  },
+  "TEST 6": {
+    "status": "PASS",
+    "message": "Chart berhasil dirender di dashboard"
+  },
+  "TEST 7": {
+    "status": "PASS",
+    "message": "Notification center berhasil dibuka"
+  },
+  "TEST 8": {
+    "status": "PASS",
+    "message": "Rekomendasi inventory muncul sesuai data"
+  },
+  "TEST 9": {
+    "status": "PASS",
+    "message": "Drawer detail batch berhasil terbuka"
+  },
+  "TEST 10": {
+    "status": "PASS",
+    "message": "FEFO sorting benar (expired terdekat di atas)"
+  },
+  "TEST 11": {
+    "status": "PASS",
+    "message": "Filter monitoring expired berhasil diubah"
+  },
+  "TEST 12": {
+    "status": "PASS",
+    "message": "Halaman low stock loaded dan terurut dengan benar"
+  },
+  "TEST 13": {
+    "status": "PASS",
+    "message": "Realtime search berhasil menyaring produk"
+  },
+  "TEST 14": {
+    "status": "PASS",
+    "message": "Pagination tidak aktif karena data sedikit, UI aman"
+  },
+  "TEST 15": {
+    "status": "PASS",
+    "message": "Inventory ledger termuat dan mutasi tampil"
+  },
+  "TEST 16": {
+    "status": "PASS",
+    "message": "Checkout tunai berhasil"
+  },
+  "TEST 17": {
+    "status": "PASS",
+    "message": "Hapus transaksi berhasil dijalankan dan rollback terjadi di backend"
+  },
+  "TEST 18": {
+    "status": "PASS",
+    "message": "Transaksi hold berhasil dibuat"
+  },
+  "TEST 19": {
+    "status": "FAIL",
+    "message": "page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\\'Cash\\')')\u001b[22m\n\u001b[2m    - locator resolved to <button disabled class=\"rounded-xl p-3 flex flex-col items-center gap-2 transition-all bg-primary/10 border-2 border-primary opacity-60 cursor-not-allowed\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    57 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+  },
+  "TEST 20": {
+    "status": "FAIL",
+    "message": "page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\\'Restock\\')')\u001b[22m\n"
+  },
+  "TEST 21": {
+    "status": "FAIL",
+    "message": "Sistem mengizinkan checkout produk dengan batch expired!"
+  },
+  "TEST 22": {
+    "status": "FAIL",
+    "message": "Ada mismatch antara sum(batch) dengan stok cache produk!"
+  },
+  "TEST 23": {
+    "status": "PASS",
+    "message": "Akses tanpa token berhasil diredirect ke login"
+  },
+  "TEST 24": {
+    "status": "PASS",
+    "message": "Auto logout berhasil terpicu"
+  },
+  "TEST 25": {
+    "status": "PASS",
+    "message": "Backend menolak akses tidak sah dengan HTTP 403"
+  },
+  "TEST 26": {
+    "status": "PASS",
+    "message": "Owner berhasil mengakses seluruh menu"
+  },
+  "TEST 27": {
+    "status": "PASS",
+    "message": "Admin dibatasi dari accessing owner page"
+  },
+  "TEST 28": {
+    "status": "PASS",
+    "message": "Kasir dibatasi dari accessing admin page"
+  },
+  "TEST 29": {
+    "status": "FAIL",
+    "message": "page.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"username\"]')\u001b[22m\n"
+  },
+  "TEST 30": {
+    "status": "PASS",
+    "message": "Halaman protected tidak dapat diakses via back button setelah logout"
+  },
+  "TEST 31": {
+    "status": "PASS",
+    "message": "Layout desktop berjalan lancar"
+  },
+  "TEST 32": {
+    "status": "PASS",
+    "message": "Layout tablet berjalan lancar"
+  },
+  "TEST 33": {
+    "status": "PASS",
+    "message": "Layout mobile berjalan lancar"
+  },
+  "TEST 34": {
+    "status": "PASS",
+    "message": "Skeleton loading terdeteksi selama API fetching (0 instances)"
+  },
+  "TEST 35": {
+    "status": "PASS",
+    "message": "Empty state UI tampil bersih dengan tulisan 'Tidak ada produk ditemukan.'"
+  },
+  "TEST 36": {
+    "status": "PASS",
+    "message": "Sistem berhasil menangani error API HTTP 500 dengan anggun"
+  },
+  "TEST 37": {
+    "status": "PASS",
+    "message": "Tidak ada TypeError atau ReferenceError di konsol browser"
+  },
+  "TEST 38": {
+    "status": "PASS",
+    "message": "Tidak ada infinite rendering atau request API berulang"
+  },
+  "TEST 39": {
+    "status": "PASS",
+    "message": "Fitur-fitur lama berjalan normal dan kompatibel"
+  },
+  "TEST 40": {
+    "status": "FAIL",
+    "message": "page.waitForSelector: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('h2:has-text(\\'Chicken Nugget Premium 500g\\')') to be visible\u001b[22m\n"
+  }
+}

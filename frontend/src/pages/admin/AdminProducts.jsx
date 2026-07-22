@@ -348,7 +348,7 @@ const AdminProducts = () => {
                                                 <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
                                                     {product.gambar ? (
                                                         <img
-                                                            src={`${import.meta.env.VITE_API_URL || "http://localhost:5000"}${product.gambar}`}
+                                                            src={`${import.meta.env.VITE_API_URL}${product.gambar}`}
                                                             alt={
                                                                 product.nama_produk
                                                             }

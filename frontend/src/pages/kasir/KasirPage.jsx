@@ -1080,7 +1080,7 @@ const KasirPage = () => {
                                     <div className="h-[160px] bg-gray-50 rounded-2xl flex items-center justify-center overflow-hidden">
                                         {product.gambar ? (
                                             <img
-                                                src={`${import.meta.env.VITE_API_URL || "http://localhost:5000"}${product.gambar}`}
+                                                src={`${import.meta.env.VITE_API_URL}${product.gambar}`}
                                                 alt={product.nama_produk}
                                                 className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
                                             />
