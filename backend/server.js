@@ -20,6 +20,8 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+console.log("JWT_SECRET =", process.env.JWT_SECRET);
+console.log("MONGO_URI =", process.env.MONGO_URI);
 // Koneksi Database
 connectDB();
 
