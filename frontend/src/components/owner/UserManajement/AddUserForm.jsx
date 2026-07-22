@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../../utils/api";
 import Swal from "sweetalert2";
 
 const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
@@ -39,8 +39,8 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 const config = {
                     headers: { Authorization: `Bearer ${userInfo?.token}` },
                 };
-                const { data } = await axios.get(
-                    "http://localhost:5000/api/branches?activeOnly=true",
+                const { data } = await api.get(
+                    "/branches?activeOnly=true",
                     config
                 );
                 setBranches(data || []);
@@ -102,8 +102,8 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
 
-            const { data } = await axios.post(
-                "http://localhost:5000/api/users/verify-step1",
+            const { data } = await api.post(
+                "/users/verify-step1",
                 { username: formData.username.trim(), email: formData.email.trim() },
                 config
             );
@@ -191,8 +191,8 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 status: formData.status,
             };
 
-            await axios.post(
-                "http://localhost:5000/api/users",
+            await api.post(
+                "/users",
                 payload,
                 config
             );

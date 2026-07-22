@@ -237,7 +237,7 @@ const AdminReports = () => {
 
         const form = document.createElement("form");
         form.method = "POST";
-        form.action = "http://localhost:5000/api/reports/download-echo";
+        form.action = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/reports/download-echo`;
         form.target = "download-iframe";
         form.style.display = "none";
 

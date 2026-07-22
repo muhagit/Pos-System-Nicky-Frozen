@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios"; // Pastikan axios sudah di-import
+import api from "../../utils/api"; // Pastikan axios sudah di-import
 
 import AddUserForm from "../../components/owner/UserManajement/AddUserForm";
 import UserTable from "../../components/owner/UserManajement/UserTable";
@@ -27,8 +27,8 @@ const UserManagement = () => {
             };
 
             // Ganti URL ini jika endpoint backend Anda berbeda
-            const { data } = await axios.get(
-                "http://localhost:5000/api/users",
+            const { data } = await api.get(
+                "/users",
                 config,
             );
 
@@ -46,8 +46,8 @@ const UserManagement = () => {
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
-            const { data } = await axios.get(
-                "http://localhost:5000/api/branches",
+            const { data } = await api.get(
+                "/branches",
                 config
             );
             setBranches(data || []);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import {
   FiTrendingUp,
   FiShoppingCart,
@@ -123,8 +123,8 @@ const DashboardOwner = () => {
         config.params.endDate = end;
       }
 
-      const { data } = await axios.get(
-        "http://localhost:5000/api/dashboard/owner",
+      const { data } = await api.get(
+        "/dashboard/owner",
         config,
       );
 

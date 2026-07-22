@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import Swal from "sweetalert2";
 import {
     FiSearch,
@@ -49,12 +49,12 @@ const AdminProducts = () => {
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
-            let url = "http://localhost:5000/api/products?";
+            let url = "/products?";
             if (searchQuery) url += `search=${searchQuery}&`;
             if (selectedCategory !== "All")
                 url += `kategori=${selectedCategory}`;
 
-            const { data } = await axios.get(url, config);
+            const { data } = await api.get(url, config);
             setProducts(data);
         } catch (error) {
             console.error("Gagal mengambil produk:", error);
@@ -68,7 +68,7 @@ const AdminProducts = () => {
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
-            const { data } = await axios.get("http://localhost:5000/api/categories", config);
+            const { data } = await api.get("/categories", config);
             setCategories(data);
         } catch (error) {
             console.error("Gagal mengambil kategori:", error);
@@ -115,8 +115,8 @@ const AdminProducts = () => {
                     const config = {
                         headers: { Authorization: `Bearer ${userInfo?.token}` },
                     };
-                    await axios.delete(
-                        `http://localhost:5000/api/products/${id}`,
+                    await api.delete(
+                        `/products/${id}`,
                         config,
                     );
                     Swal.fire(
@@ -161,15 +161,15 @@ const AdminProducts = () => {
 
         try {
             if (isEditing) {
-                await axios.put(
-                    `http://localhost:5000/api/products/${currentId}`,
+                await api.put(
+                    `/products/${currentId}`,
                     submitData,
                     multipartConfig,
                 );
                 Swal.fire("Berhasil!", "Data produk diperbarui.", "success");
             } else {
-                await axios.post(
-                    "http://localhost:5000/api/products",
+                await api.post(
+                    "/products",
                     submitData,
                     multipartConfig,
                 );
@@ -348,7 +348,7 @@ const AdminProducts = () => {
                                                 <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
                                                     {product.gambar ? (
                                                         <img
-                                                            src={`http://localhost:5000${product.gambar}`}
+                                                            src={`${import.meta.env.VITE_API_URL || "http://localhost:5000"}${product.gambar}`}
                                                             alt={
                                                                 product.nama_produk
                                                             }

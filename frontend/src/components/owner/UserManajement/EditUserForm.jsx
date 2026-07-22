@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../../utils/api";
 import Swal from "sweetalert2";
 
 const EditUserForm = ({
@@ -26,8 +26,8 @@ const EditUserForm = ({
         const config = {
           headers: { Authorization: `Bearer ${userInfo?.token}` },
         };
-        const { data } = await axios.get(
-          "http://localhost:5000/api/branches?activeOnly=true",
+        const { data } = await api.get(
+          "/branches?activeOnly=true",
           config
         );
         setBranches(data || []);
@@ -109,8 +109,8 @@ const EditUserForm = ({
       };
 
       // Kirim request PUT ke backend
-      await axios.put(
-        `http://localhost:5000/api/users/${selectedUser._id}`,
+      await api.put(
+        `/users/${selectedUser._id}`,
         payload,
         config,
       );

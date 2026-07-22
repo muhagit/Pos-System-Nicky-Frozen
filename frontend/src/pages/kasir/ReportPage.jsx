@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import Swal from "sweetalert2";
 import {
     FiFileText,
@@ -63,7 +63,7 @@ const ReportPage = () => {
     // Fetch active shift & today's shift records
     const fetchShiftData = async () => {
         try {
-            const { data } = await axios.get("http://localhost:5000/api/reports/active-shift", config);
+            const { data } = await api.get("/reports/active-shift", config);
             setActiveShift(data.activeShift);
             setTodayShifts(data.todayShifts || []);
         } catch (error) {
@@ -75,7 +75,7 @@ const ReportPage = () => {
     const fetchReports = async () => {
         setIsLoading(true);
         try {
-            const { data } = await axios.get("http://localhost:5000/api/reports", config);
+            const { data } = await api.get("/reports", config);
             setDailyReports(data);
         } catch (error) {
             console.error("Gagal mengambil riwayat laporan:", error);
@@ -96,7 +96,7 @@ const ReportPage = () => {
         setDetailData(null);
         try {
             const dateStr = new Date(rep.tanggal_laporan).toISOString().slice(0, 10);
-            const { data } = await axios.get(`http://localhost:5000/api/reports/detail/${dateStr}`, config);
+            const { data } = await api.get(`/reports/detail/${dateStr}`, config);
             setDetailData(data);
         } catch (error) {
             console.error("Gagal mengambil detail:", error);
@@ -112,7 +112,7 @@ const ReportPage = () => {
         setTodayShiftDetail({ shiftName, transactions: [], loading: true });
         try {
             const todayStr = new Date().toISOString().slice(0, 10);
-            const { data } = await axios.get(`http://localhost:5000/api/reports/detail/${todayStr}`, config);
+            const { data } = await api.get(`/reports/detail/${todayStr}`, config);
             const filteredTx = (data.transactions || []).filter(tx => tx.shift === shiftName);
             setTodayShiftDetail({ shiftName, transactions: filteredTx, loading: false });
         } catch (error) {
@@ -136,7 +136,7 @@ const ReportPage = () => {
             });
             try {
                 const dateStr = new Date(rep.tanggal_laporan).toISOString().slice(0, 10);
-                const { data } = await axios.get(`http://localhost:5000/api/reports/detail/${dateStr}`, config);
+                const { data } = await api.get(`/reports/detail/${dateStr}`, config);
                 printDetail = data;
                 Swal.close();
             } catch (error) {
@@ -355,7 +355,7 @@ const ReportPage = () => {
 
         setIsSubmitting(true);
         try {
-            await axios.post("http://localhost:5000/api/reports/tutup-buku", { total_kas_fisik: physicalCash }, config);
+            await api.post("/reports/tutup-buku", { total_kas_fisik: physicalCash }, config);
 
             Swal.fire({
                 icon: "success",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import Swal from "sweetalert2";
 import {
     FiSearch,
@@ -28,8 +28,8 @@ const AdminStock = () => {
     // ================= 1. READ (Ambil Data) =================
     const fetchProducts = async () => {
         try {
-            const { data } = await axios.get(
-                "http://localhost:5000/api/products",
+            const { data } = await api.get(
+                "/products",
                 config,
             );
             setProducts(data);
@@ -102,8 +102,8 @@ const AdminStock = () => {
                 : product.stok_saat_ini - parseInt(quantity);
 
             try {
-                await axios.put(
-                    `http://localhost:5000/api/products/${product._id}`,
+                await api.put(
+                    `/products/${product._id}`,
                     {
                         ...product,
                         stok_saat_ini: newStock,

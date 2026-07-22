@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import Swal from "sweetalert2";
 import { FiAlertTriangle, FiCalendar, FiTrash2 } from "react-icons/fi";
 
@@ -13,8 +13,8 @@ const AdminExpired = () => {
     // ================= 1. READ (Ambil Data) =================
     const fetchProducts = async () => {
         try {
-            const { data } = await axios.get(
-                "http://localhost:5000/api/products",
+            const { data } = await api.get(
+                "/products",
                 config,
             );
             setProducts(data);
@@ -43,8 +43,8 @@ const AdminExpired = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    await axios.delete(
-                        `http://localhost:5000/api/products/${id}`,
+                    await api.delete(
+                        `/products/${id}`,
                         config,
                     );
                     Swal.fire(

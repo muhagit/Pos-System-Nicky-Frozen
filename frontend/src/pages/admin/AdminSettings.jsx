@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import Swal from "sweetalert2";
 import { FiUser, FiLock, FiBell, FiSave } from "react-icons/fi";
 
@@ -46,8 +46,8 @@ const AdminSettings = () => {
     const handleUpdateProfile = async (e) => {
         e.preventDefault();
         try {
-            const { data } = await axios.put(
-                `http://localhost:5000/api/users/${userData._id}`,
+            const { data } = await api.put(
+                `/users/${userData._id}`,
                 {
                     nama_lengkap: profileForm.nama_lengkap,
                     username: profileForm.username,
@@ -96,8 +96,8 @@ const AdminSettings = () => {
 
         try {
             // Kita gunakan endpoint update user yang sama, tapi hanya mengirim password
-            await axios.put(
-                `http://localhost:5000/api/users/${userData._id}`,
+            await api.put(
+                `/users/${userData._id}`,
                 {
                     password: passwordForm.newPassword,
                 },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../utils/api";
 import {
     FiBell,
     FiPackage,
@@ -41,7 +41,7 @@ const AdminDashboard = () => {
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
-            const res = await axios.get("http://localhost:5000/api/transactions/notifications", config);
+            const res = await api.get("/transactions/notifications", config);
             setNotifications(res.data);
             setIsNotifLoading(false);
         } catch (error) {
@@ -59,9 +59,9 @@ const AdminDashboard = () => {
                 };
 
                 const [productRes, transactionRes, logRes] = await Promise.all([
-                    axios.get("http://localhost:5000/api/products", config),
-                    axios.get("http://localhost:5000/api/transactions", config),
-                    axios.get("http://localhost:5000/api/products/transfer-logs", config),
+                    api.get("/products", config),
+                    api.get("/transactions", config),
+                    api.get("/products/transfer-logs", config),
                 ]);
 
                 setProducts(productRes.data);

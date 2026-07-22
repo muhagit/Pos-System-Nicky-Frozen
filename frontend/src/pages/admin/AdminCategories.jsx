@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import Swal from "sweetalert2";
 import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
@@ -25,8 +25,8 @@ const AdminCategories = () => {
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
             };
-            let url = `http://localhost:5000/api/categories?search=${searchQuery}&sort=${sortBy}`;
-            const { data } = await axios.get(url, config);
+            let url = `/categories?search=${searchQuery}&sort=${sortBy}`;
+            const { data } = await api.get(url, config);
             setCategories(data);
             setTotalPages(Math.ceil(data.length / 5)); // 5 items per page
         } catch (error) {
@@ -72,7 +72,7 @@ const AdminCategories = () => {
             const payload = { nama_kategori: namaKategori.trim() };
 
             if (isEditing) {
-                await axios.put(`http://localhost:5000/api/categories/${currentId}`, payload, config);
+                await api.put(`/categories/${currentId}`, payload, config);
                 Swal.fire({
                     title: "Berhasil!",
                     text: "Kategori berhasil diperbarui.",
@@ -81,7 +81,7 @@ const AdminCategories = () => {
                     showConfirmButton: false,
                 });
             } else {
-                await axios.post("http://localhost:5000/api/categories", payload, config);
+                await api.post("/categories", payload, config);
                 Swal.fire({
                     title: "Berhasil!",
                     text: "Kategori baru berhasil ditambahkan.",
@@ -119,7 +119,7 @@ const AdminCategories = () => {
                 const config = {
                     headers: { Authorization: `Bearer ${userInfo?.token}` },
                 };
-                await axios.delete(`http://localhost:5000/api/categories/${id}`, config);
+                await api.delete(`/categories/${id}`, config);
                 Swal.fire({
                     title: "Terhapus!",
                     text: "Kategori berhasil dihapus.",

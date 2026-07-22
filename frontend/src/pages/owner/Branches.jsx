@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 import { FiEdit, FiTrash2, FiPlus, FiX } from "react-icons/fi";
 import Swal from "sweetalert2";
 import RevenueChart from "../../components/owner/RevenueChart";
@@ -64,8 +64,8 @@ const Branches = () => {
   const fetchMonitoringData = async () => {
     try {
       setIsLoadingMonitoring(true);
-      const { data } = await axios.get(
-        "http://localhost:5000/api/dashboard/owner",
+      const { data } = await api.get(
+        "/dashboard/owner",
         config
       );
       setRingkasanCabang(data.cabang || []);
@@ -81,8 +81,8 @@ const Branches = () => {
   const fetchBranches = async () => {
     try {
       setIsLoadingCRUD(true);
-      const { data } = await axios.get(
-        "http://localhost:5000/api/branches",
+      const { data } = await api.get(
+        "/branches",
         config
       );
       setBranches(data || []);
@@ -132,14 +132,14 @@ const Branches = () => {
 
     try {
       if (modalMode === "add") {
-        await axios.post(
-          "http://localhost:5000/api/branches",
+        await api.post(
+          "/branches",
           formData,
           config
         );
       } else {
-        await axios.put(
-          `http://localhost:5000/api/branches/${selectedBranchId}`,
+        await api.put(
+          `/branches/${selectedBranchId}`,
           formData,
           config
         );
@@ -166,7 +166,7 @@ const Branches = () => {
 
     if (result.isConfirmed) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/branches/${id}`, config);
+        const response = await api.delete(`/branches/${id}`, config);
         Swal.fire({
           icon: "success",
           title: "Terhapus!",
@@ -188,8 +188,8 @@ const Branches = () => {
   // Quick toggle active status
   const handleToggleStatus = async (branch) => {
     try {
-      await axios.put(
-        `http://localhost:5000/api/branches/${branch._id}`,
+      await api.put(
+        `/branches/${branch._id}`,
         { ...branch, isActive: !branch.isActive },
         config
       );

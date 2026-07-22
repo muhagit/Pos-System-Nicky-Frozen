@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../../utils/api";
 import Swal from "sweetalert2";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
@@ -48,8 +48,8 @@ const UserTable = ({
                         headers: { Authorization: `Bearer ${userInfo?.token}` },
                     };
 
-                    await axios.delete(
-                        `http://localhost:5000/api/users/${id}`,
+                    await api.delete(
+                        `/users/${id}`,
                         config,
                     );
 

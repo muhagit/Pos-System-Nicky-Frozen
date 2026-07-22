@@ -7,7 +7,7 @@ import {
 } from "react-icons/fi";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../utils/api";
 
 const NotificationPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -19,8 +19,8 @@ const NotificationPage = () => {
         const config = {
           headers: { Authorization: `Bearer ${userInfo?.token}` },
         };
-        const res = await axios.get(
-          "http://localhost:5000/api/transactions/notifications",
+        const res = await api.get(
+          "/transactions/notifications",
           config
         );
 
