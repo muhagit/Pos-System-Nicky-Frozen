@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";import logoImg from "../assets/logo.png";
 
 import {
   FiShoppingCart,
@@ -24,12 +24,17 @@ const KasirLayout = () => {
       <div id="tour-sidebar" className="w-[280px] bg-sidebar text-white flex flex-col justify-between p-5">
         <div>
           {/* LOGO */}
-          <div>
-            <h1 className="text-3xl font-bold">Nicky Frozen</h1>
-            {userInfo?.cabang && (
-              <p className="text-sm text-gray-300 mt-0.5 font-medium">{userInfo.cabang}</p>
-            )}
-            <p className="text-primary mt-1">Cashier</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 shadow-sm">
+              <img src={logoImg} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white leading-none">Nicky Frozen</h1>
+              {userInfo?.cabang && (
+                <p className="text-xs text-gray-300 mt-1 font-medium leading-none">{userInfo.cabang}</p>
+              )}
+              <p className="text-primary text-xs mt-1 leading-none">Cashier</p>
+            </div>
           </div>
 
           {/* PROFILE */}

@@ -1,6 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../utils/api";
+import logoImg from "../assets/logo.png";
 
 import {
   FiHome,
@@ -83,14 +84,18 @@ useEffect(() => {
         <div>
 
           {/* LOGO */}
-          <div className="px-2">
-            <h1 className="text-2xl font-bold tracking-tight">
-              Nicky Frozen
-            </h1>
-
-            <p className="text-primary text-sm mt-1">
-              Owner Panel
-            </p>
+          <div className="px-2 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 shadow-sm">
+              <img src={logoImg} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white leading-none">
+                Nicky Frozen
+              </h1>
+              <p className="text-primary text-xs mt-1">
+                Owner Panel
+              </p>
+            </div>
           </div>
 
           {/* PROFILE */}

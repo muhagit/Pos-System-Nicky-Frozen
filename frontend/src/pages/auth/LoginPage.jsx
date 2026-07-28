@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"; // Sangat disarankan pakai ini u
 import API from "../../services/api";
 import Swal from "sweetalert2"; // Gunakan huruf kapital 'S' sesuai konvensi
 import loginBg from "../../assets/login-bg.jpg";
+import logoImg from "../../assets/logo.png";
 
 const LoginPage = () => {
     const [formData, setFormData] = useState({
@@ -197,14 +198,12 @@ const LoginPage = () => {
                     {/* Logo & Brand */}
                     <div className="relative z-10 flex flex-col items-center text-center mt-10">
                         <div
-                            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+                            className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 bg-white shadow-lg p-2 transition-transform hover:scale-105 duration-300"
                             style={{
-                                background: "rgba(34, 211, 238, 0.25)",
-                                backdropFilter: "blur(8px)",
-                                border: "1px solid rgba(34,211,238,0.3)",
+                                border: "1px solid rgba(255, 255, 255, 0.4)",
                             }}
                         >
-                            <SnowflakeIcon size={32} color="#22d3ee" />
+                            <img src={logoImg} alt="Nicky Frozen Logo" className="w-full h-full object-contain" />
                         </div>
 
                         <h1 className="text-3xl font-bold text-white mb-2">
@@ -262,6 +261,19 @@ const LoginPage = () => {
                     <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px] opacity-30 pointer-events-none"></div>
 
                     <div className="relative z-10">
+                        {/* Mobile Logo & Brand */}
+                        <div className="flex flex-col items-center mb-6 md:hidden text-center">
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-white shadow-md p-1.5 mb-2">
+                                <img src={logoImg} alt="Nicky Frozen Logo" className="w-full h-full object-contain" />
+                            </div>
+                            <h1 className="text-xl font-bold text-[var(--color-text)]">
+                                Nicky Frozen
+                            </h1>
+                            <p className="text-xs text-[var(--color-primary-dark)] font-medium">
+                                Fresh &amp; Quality Frozen Food
+                            </p>
+                        </div>
+
                         <h2 className="text-3xl font-bold text-[var(--color-text)] mb-1">
                             Welcome Back
                         </h2>
