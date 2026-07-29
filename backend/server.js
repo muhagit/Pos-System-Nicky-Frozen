@@ -26,33 +26,26 @@ connectDB();
    CORS CONFIGURATION
 ============================================================ */
 const allowedOrigins = [
-    "http://localhost:5173", // Development
-    process.env.FRONTEND_URL, // Production (Vercel)
-].filter(Boolean);
+    "http://localhost:5173",
+    "https://pos-system-nicky-frozen.vercel.app",
+    "https://www.nickypos.web.id",
+];
 
-console.log("Allowed Origins:", allowedOrigins);
+app.use(cors({
+    origin(origin, callback) {
 
-app.use(
-    cors({
-        origin: (origin, callback) => {
-            // Mengizinkan request tanpa Origin (Postman, Thunder Client, dll.)
-            if (!origin) return callback(null, true);
+        if (!origin) return callback(null, true);
 
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
 
-            console.warn(`CORS blocked request from: ${origin}`);
-            return callback(new Error("Origin not allowed by CORS"));
-        },
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: [
-            "Content-Type",
-            "Authorization",
-        ],
-    })
-);
+        console.log("Blocked Origin:", origin);
+
+        callback(new Error("Origin not allowed"));
+    },
+    credentials: true
+}));
 
 /* ============================================================
    MIDDLEWARE
