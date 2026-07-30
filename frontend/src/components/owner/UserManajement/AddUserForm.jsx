@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
     const [currentStep, setCurrentStep] = useState(1);
     const [isVerifying, setIsVerifying] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     
     // State untuk form values
     const [formData, setFormData] = useState({
@@ -176,6 +177,7 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
         }
 
         try {
+            setIsSaving(true);
             const userInfo = JSON.parse(localStorage.getItem("userInfo"));
             const config = {
                 headers: { Authorization: `Bearer ${userInfo?.token}` },
@@ -215,6 +217,8 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                 text: error.response?.data?.message || "Gagal menyimpan pengguna baru.",
                 confirmButtonColor: "#d33",
             });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -353,20 +357,7 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                                 </div>
                             )}
 
-                            <div>
-                                <label className="text-sm font-medium text-text">
-                                    Status
-                                </label>
-                                <select
-                                    name="status"
-                                    value={formData.status}
-                                    onChange={handleChange}
-                                    className="w-full mt-2 border border-border rounded-xl px-4 py-3 bg-background outline-none text-text focus:border-primary"
-                                >
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                </select>
-                            </div>
+
                         </div>
                     )}
 
@@ -506,9 +497,14 @@ const AddUserForm = ({ showModal, setShowModal, fetchUsers }) => {
                         {currentStep === 3 && (
                             <button
                                 onClick={handleSave}
-                                className="bg-primary hover:bg-primary-dark text-sidebar font-semibold px-6 py-3 rounded-2xl transition-all duration-200 text-sm shadow-sm cursor-pointer"
+                                disabled={isSaving}
+                                className="bg-primary hover:bg-primary-dark text-sidebar font-semibold px-6 py-3 rounded-2xl transition-all duration-200 text-sm shadow-sm flex items-center justify-center min-w-32 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Simpan Akun
+                                {isSaving ? (
+                                    <div className="w-5 h-5 border-2 border-sidebar border-b-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    "Simpan Akun"
+                                )}
                             </button>
                         )}
                     </div>
